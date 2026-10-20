@@ -1,0 +1,657 @@
+/* ══════════════════════════════════════════════════════════════════
+   Callback Admin Tool — сцена презентации
+
+   Слой поверх styles.css. Отвечает за то, что живёт МЕЖДУ слайдами:
+   чертёжный фон, шина данных, кубик Рубика, механическая рука и
+   переходы между сценами.
+
+   Правило слоя: здесь нет ни одного случайного движения. Каждый
+   объект привязан к позиции скролла, поэтому быстрая прокрутка не
+   может рассинхронизировать сцену — состояние всегда вычисляется
+   из положения страницы, а не накапливается от событий.
+   ══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Прогресс всей презентации, 0…1 — его выставляет stage.js */
+  --run: 0;
+  /* Акцент сцены: один на всю презентацию, без неона */
+  --stage-accent: #38e8ff;
+}
+
+/* ─────────────────── 1. Чертёжный фон ─────────────────── */
+
+/* Сетка вместо прежнего облака частиц: она читается как подложка
+   инженерного чертежа и не отвлекает — у неё нет своей жизни,
+   она только смещается вместе со скроллом. */
+.blueprint {
+  position: fixed;
+  inset: -10vh 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image:
+    linear-gradient(rgba(140, 160, 220, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(140, 160, 220, 0.055) 1px, transparent 1px),
+    linear-gradient(rgba(140, 160, 220, 0.11) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(140, 160, 220, 0.11) 1px, transparent 1px);
+  background-size: 28px 28px, 28px 28px, 140px 140px, 140px 140px;
+  transform: translate3d(0, calc(var(--run) * -60px), 0);
+  will-change: transform;
+}
+
+/* Горизонт: единственный «мягкий» элемент фона. Держит глубину,
+   чтобы сетка не выглядела наклеенной на плоскость. */
+.horizon {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(90% 60% at 50% calc(100% - var(--run) * 40%),
+      rgba(56, 232, 255, 0.07), transparent 65%),
+    radial-gradient(120% 120% at 50% 50%, transparent 35%, rgba(5, 7, 14, 0.94) 100%);
+}
+
+/* ─────────────────── 2. Шина данных ─────────────────── */
+
+/* Вертикальная линия у левого края — физическая связь между слайдами.
+   По ней идут пакеты с настоящими сущностями проекта, и именно она
+   делает промежуток между секциями переходом, а не пустотой. */
+.bus {
+  position: fixed;
+  left: clamp(0.875rem, 3.4vw, 3.375rem);
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.bus-rail {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(140, 160, 220, 0.22) 12%,
+    rgba(140, 160, 220, 0.22) 88%,
+    transparent 100%
+  );
+}
+
+/* Пройденная часть шины — заливается по мере прокрутки. Это тот же
+   прогресс, что в верхней полоске, но выраженный как «провод, по
+   которому уже прошёл сигнал». */
+.bus-live {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: calc(var(--run) * 100%);
+  background: linear-gradient(180deg, rgba(56, 232, 255, 0.55), rgba(139, 108, 255, 0.4));
+  box-shadow: 0 0 12px rgba(56, 232, 255, 0.35);
+}
+
+/* Разрыв шины на слайде «Как было»: связь рвётся буквально. */
+.bus.is-broken .bus-live { opacity: 0.25; }
+.bus.is-broken .bus-rail {
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255, 92, 110, 0.5) 0 0.4375rem,
+    transparent 0.4375rem 1.25rem
+  );
+}
+
+.bus-packet {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
+  white-space: nowrap;
+  opacity: 0;
+}
+
+.bus-packet i {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 2px;
+  background: var(--stage-accent);
+  box-shadow: 0 0 10px rgba(56, 232, 255, 0.8);
+  flex: none;
+}
+
+.bus-packet span {
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  color: rgba(56, 232, 255, 0.85);
+  text-transform: lowercase;
+}
+
+/* ─────────────────── 3. Промежуток между слайдами ─────────────────── */
+
+/* «Секция → пространство → переход → следующая секция».
+   Вставляется скриптом, а не руками в разметке: так шаги нумеруются
+   сами и не разъезжаются при добавлении слайда.
+
+   Высота заметная (около трети экрана): промежуток должен читаться как
+   смена кадра, а не как случайный отступ. Метка стоит по центру полосы,
+   поэтому пустота есть и до неё, и после. */
+.interlude {
+  position: relative;
+  z-index: 2;
+  height: 34vh;
+  min-height: 14.375rem;
+  display: flex;
+  align-items: center;
+  padding-left: clamp(2.875rem, 7vw, 6.75rem);
+}
+
+.interlude-mark {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  opacity: 0;
+  transform: translateX(-14px);
+  transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out);
+}
+
+.interlude.on .interlude-mark { opacity: 1; transform: none; }
+
+.interlude-node {
+  width: 0.5625rem;
+  height: 0.5625rem;
+  flex: none;
+  border: 1px solid rgba(56, 232, 255, 0.6);
+  transform: rotate(45deg);
+}
+
+.interlude.on .interlude-node { background: rgba(56, 232, 255, 0.22); }
+
+.interlude-step {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.16em;
+  color: var(--ink-faint);
+}
+
+.interlude-name {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  color: rgba(56, 232, 255, 0.75);
+}
+
+.interlude-line {
+  width: clamp(2.5rem, 9vw, 8.125rem);
+  height: 1px;
+  background: linear-gradient(90deg, rgba(56, 232, 255, 0.5), transparent);
+}
+
+/* ─────────────────── 4. Кубик Рубика ─────────────────── */
+
+/* Фоновый storytelling-элемент: собирается весь показ и завершается
+   вместе с ним. Живёт в углу и намеренно приглушён — он комментирует
+   происходящее, а не борется с контентом за внимание. */
+.cube-stage {
+  position: fixed;
+  right: clamp(1.125rem, 4vw, 4.5rem);
+  /* Поднят к самому верху. Раньше кубик стоял ровно там, куда рука
+     выносит захват, и две машины сливались в один клубок. Разведены
+     не яркостью, а местом: у каждой свой этаж кадра, между ними
+     остаётся пустая полоса — по ней и читается, что их две. */
+  top: clamp(2.5rem, 5vh, 4rem);
+  /* Растёт вместе с экраном: на широком мониторе фиксированные 168px
+     превращались в незаметную точку в углу. Размер влияет и на рисунок
+     рёбер: сцена ужимается масштабом, и в тесном контейнере штрихпунктир
+     сжимался до сплошной линии — отсюда запас. */
+  width: clamp(13.125rem, 21vw, 26.875rem);
+  height: clamp(13.125rem, 21vw, 26.875rem);
+  z-index: 1;
+  pointer-events: none;
+  perspective: 900px;
+
+  /* ── Присутствие кубика ──
+     Две доли, обе множатся в альфу рёбер (см. .cubie-face), а не в
+     opacity контейнера. Причина техническая: opacity и filter — это
+     grouping-свойства, они принудительно схлопывают `transform-style:
+     preserve-3d`, и каркас из объёмного стал бы плоским. Попутно это
+     развязывает кубик с подписью под ним: подпись держит свой контраст
+     и не тонет вместе с каркасом.
+
+     --cube-ink — постоянная приглушённость: кубик здесь фоновая
+       история, а не главный объект.
+     --cube-fade — угасание по ходу показа, его ведёт скрипт из
+       позиции прокрутки. */
+  --cube-ink: 1;
+  --cube-fade: 1;
+
+  /* ── Две ручки настройки кубика, менять только здесь ──
+     --cubie-size — ребро детали, --cubie-gap — просвет между деталями.
+     Шаг сетки скрипт считает сам как size + gap, а сдвиг грани берёт
+     как половину ребра, поэтому третьего числа больше нигде нет.
+     Правка подхватывается на лету: можно крутить прямо в DevTools
+     (Elements → .cube-stage) и смотреть, сколько зазора нужно,
+     или из консоли:
+       document.querySelector('.cube-stage')
+         .style.setProperty('--cubie-gap', '12px'); */
+  --cubie-size: 100px;
+  --cubie-gap: 50px;
+}
+
+.cube {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  /* Ориентация задаётся скриптом: медленный дрейф + доворот на секциях */
+  transform: rotateX(-26deg) rotateY(34deg);
+}
+
+.cubie {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--cubie-size);
+  height: var(--cubie-size);
+  margin: calc(var(--cubie-size) / -2) 0 0 calc(var(--cubie-size) / -2);
+  transform-style: preserve-3d;
+}
+
+/* Грань полностью прозрачна: кубик читается как проволочный каркас,
+   сквозь него видно и фон, и дальние детали.
+
+   Рёбра нарисованы фоном, а не border, по одной причине: border-style
+   знает только один рисунок на всю рамку и не умеет привязать длину
+   штриха к размеру детали. Поэтому каждое из четырёх рёбер —
+   повторяющийся градиент из штриха и просвета.
+   Цвет собран из двух частей: --edge-rgb (тон) и --edge-w (вес линии).
+   Состояние детали меняет только их, а общее присутствие кубика
+   (--cube-ink и --cube-fade со сцены) домножается здесь же. Так
+   угасание кубика живёт в одном месте и не требует opacity на
+   контейнере, который сломал бы preserve-3d. */
+.cubie-face {
+  position: absolute;
+  inset: 0;
+  --edge-rgb: 158 166 182;
+  --edge-w: 0.17;
+  --edge: rgb(var(--edge-rgb) / calc(var(--edge-w) * var(--cube-ink) * var(--cube-fade)));
+
+  /* Рисунок штриха — в долях ребра детали, а не в пикселях. Вся сцена
+     кубика ужимается масштабом под контейнер, поэтому фиксированные
+     пиксели при крупной детали превращались на экране в сплошную
+     линию. Доли масштабируются вместе с ней. Две опорные точки:
+     конец штриха и период. */
+  --dash: calc(var(--cubie-size) * 0.17);
+  --step: calc(var(--cubie-size) * 0.29);
+  --thick: max(1px, calc(var(--cubie-size) * 0.022));
+  --line-h: repeating-linear-gradient(90deg,
+    var(--edge) 0 var(--dash), transparent var(--dash) var(--step));
+  --line-v: repeating-linear-gradient(180deg,
+    var(--edge) 0 var(--dash), transparent var(--dash) var(--step));
+
+  background-image: var(--line-h), var(--line-h), var(--line-v), var(--line-v);
+  background-size:
+    100% var(--thick), 100% var(--thick),
+    var(--thick) 100%, var(--thick) 100%;
+  background-position: 0 0, 0 100%, 0 0, 100% 0;
+  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+}
+
+/* Шесть граней каркаса. Держатся в CSS, а не в скрипте, не для красоты:
+   сдвиг грани — ровно половина ребра, и числом в JS он бы разъехался
+   с --cubie-size при первой же ручной правке. */
+.cubie-face--front  { transform: rotateY(0deg)   translateZ(calc(var(--cubie-size) / 2)); }
+.cubie-face--back   { transform: rotateY(180deg) translateZ(calc(var(--cubie-size) / 2)); }
+.cubie-face--right  { transform: rotateY(90deg)  translateZ(calc(var(--cubie-size) / 2)); }
+.cubie-face--left   { transform: rotateY(-90deg) translateZ(calc(var(--cubie-size) / 2)); }
+.cubie-face--top    { transform: rotateX(90deg)  translateZ(calc(var(--cubie-size) / 2)); }
+.cubie-face--bottom { transform: rotateX(-90deg) translateZ(calc(var(--cubie-size) / 2)); }
+
+/* Собранная деталь. Рисунок линии прежний — меняется только плотность
+   и светлота серого. Заливки нет, деталь просвечивает насквозь. */
+.cubie.is-set .cubie-face { --edge-rgb: 186 193 208; --edge-w: 0.31; }
+
+/* Деталь, попавшая в поворачивающийся слой — подсвечивается на время хода */
+.cubie.is-turning .cubie-face { --edge-rgb: 214 220 232; --edge-w: 0.44; }
+
+.cube-stage.is-loose { --cube-ink: 0.88; }
+
+.cube-label {
+  position: absolute;
+  left: 0;
+  bottom: -1.375rem;
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.14em;
+  /* Читаемый тон, а не самый бледный в палитре: подпись теперь не
+     умножается на непрозрачность каркаса и отвечает за свой контраст
+     сама — 7:1 против фона вместо прежних 3.4:1. */
+  color: var(--ink-dim);
+  /* Гаснет вместе с кубиком: «сборка 100%» без самого кубика в кадре
+     была бы подписью к пустому месту. */
+  opacity: var(--cube-fade);
+}
+
+.cube-label b {
+  color: rgba(56, 232, 255, 0.8);
+  font-weight: 600;
+}
+
+/* ─────────────────── 5. Механическая рука ─────────────────── */
+
+/* Основной сюжетный элемент: собирается по секциям и в финале
+   нажимает Send callback. Стоит у правого края, частично за кадром —
+   так она читается как крупный станок рядом, а не как иллюстрация. */
+.arm-stage {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: min(42vw, 55rem);
+  /* Ниже, чем было: станок ростом в 88vh заносил захват в верхнюю
+     треть экрана, к кубику. Вся механика живёт в одном viewBox,
+     поэтому рука с кнопкой уменьшаются вместе и связь не рвётся. */
+  height: min(74vh, 52rem);
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.9;
+  transition: opacity 0.7s var(--ease-out);
+}
+
+.arm-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Каждая деталь приезжает на своё место и там остаётся. Смещение
+   направлено вдоль оси её установки, а не случайно: основание снизу,
+   звенья — вдоль руки. */
+.arm-part {
+  opacity: 0;
+  transform: translate(var(--dx, 0px), var(--dy, 26px));
+  transition:
+    opacity 0.55s var(--ease-out),
+    transform 0.75s var(--ease-back);
+}
+
+.arm-part.is-docked { opacity: 1; transform: none; }
+
+/* Расшатывание на слайде «Как было»: узлы теряют соосность */
+.arm-stage.is-loose .arm-part.is-docked { transform: translate(var(--lx, 3px), var(--ly, -2px)) rotate(var(--lr, 0.8deg)); }
+
+.arm-line { fill: none; stroke: rgba(180, 196, 236, 0.75); stroke-width: 1.4; }
+.arm-line--thin { stroke: rgba(140, 160, 220, 0.45); stroke-width: 1; }
+.arm-hatch { fill: none; stroke: rgba(140, 160, 220, 0.3); stroke-width: 0.8; }
+.arm-metal { fill: url(#armMetal); }
+.arm-dark { fill: rgba(9, 13, 28, 0.9); }
+
+/* Корпус звеньев и пальцев: цилиндрическая заливка и светлая кромка.
+   Дальние пальцы темнее — так кисть читается в глубину, а не плоско. */
+.arm-shell {
+  fill: url(#armShade);
+  stroke: rgba(180, 196, 236, 0.7);
+  stroke-width: 1.1;
+  stroke-linejoin: round;
+}
+.arm-shell--far { fill: url(#armShadeFar); stroke: rgba(140, 160, 220, 0.38); }
+.arm-ball { fill: url(#armBall); stroke: rgba(180, 196, 236, 0.6); stroke-width: 1.1; }
+.arm-seam { fill: none; stroke: rgba(140, 160, 220, 0.4); stroke-width: 0.8; stroke-linecap: round; }
+.arm-pin { fill: rgba(9, 13, 28, 0.9); stroke: rgba(140, 160, 220, 0.45); stroke-width: 0.6; }
+
+/* Датчик на подушечке указательного: загорается в момент нажатия */
+.arm-pad { fill: rgba(56, 232, 255, 0.22); transition: fill 0.15s var(--ease-out); }
+.arm-stage.is-pressed .arm-pad {
+  fill: var(--stage-accent);
+  filter: drop-shadow(0 0 4px rgba(56, 232, 255, 0.9));
+}
+
+/* Луч от кончика пальца к полу — видно, что кнопка рождается под ним */
+.arm-beam {
+  stroke: var(--stage-accent);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+  opacity: 0;
+}
+
+/* Кабельный жгут: пунктир течёт только когда по системе идут данные */
+.arm-cable {
+  fill: none;
+  stroke: rgba(139, 108, 255, 0.55);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-dasharray: 5 9;
+}
+
+.arm-stage.is-flowing .arm-cable { animation: cableFlow 1.1s linear infinite; }
+
+@keyframes cableFlow { to { stroke-dashoffset: -28; } }
+
+.arm-led { fill: rgba(140, 160, 220, 0.25); transition: fill 0.4s ease; }
+.arm-led.on { fill: var(--stage-accent); filter: drop-shadow(0 0 4px rgba(56, 232, 255, 0.9)); }
+
+/* Кнопка живёт внутри слоя руки, а не в тексте слайда: так палец
+   гарантированно попадает по ней при любой вёрстке и любом экране.
+   Появление и просадку ведёт pose() — здесь только облик. */
+
+/* Кнопка — цилиндр в перспективе, а не круг с тенью: гнездо, стенка
+   и крышка нарисованы как три разные поверхности одного тела. Объём
+   даёт геометрия и тон, поэтому он не разваливается, когда станок
+   разворачивается и кнопка уезжает по дуге. */
+
+/* Гнездо: тёмная посадочная чаша, в которую тонет плунжер */
+.btn-socket {
+  fill: rgba(6, 9, 20, 0.92);
+  stroke: rgba(140, 160, 220, 0.28);
+  stroke-width: 1.2;
+}
+
+.btn-socket-inner {
+  fill: rgba(3, 5, 14, 0.95);
+  stroke: none;
+}
+
+/* Стенка цилиндра — образующая между двумя эллипсами. Градиент идёт
+   поперёк, поэтому левый край читается как освещённый, правый — как
+   уходящий в тень: так труба не выглядит плоской лентой. */
+.btn-wall {
+  fill: url(#btnWall);
+  stroke: rgba(140, 160, 220, 0.22);
+  stroke-width: 1;
+}
+
+/* Крышка. Свет в радиальном градиенте смещён влево вверх — туда же,
+   куда смотрит свет всего чертежа. */
+.btn-cap {
+  fill: url(#btnCap);
+  stroke: rgba(56, 232, 255, 0.45);
+  stroke-width: 1.4;
+  transition: stroke 0.14s var(--ease-out), filter 0.14s var(--ease-out);
+}
+
+/* Блик — дуга по верхней кромке купола, а не пятно: он повторяет
+   кривизну и потому держится при любом развороте. */
+.btn-gloss {
+  fill: none;
+  stroke: rgba(210, 232, 255, 0.34);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.arm-stage.is-pressed .btn-cap {
+  stroke: rgba(56, 232, 255, 0.95);
+  filter: drop-shadow(0 0 6px rgba(56, 232, 255, 0.55));
+}
+
+.arm-button-label {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  fill: rgba(232, 237, 255, 0.72);
+  transition: fill 0.16s var(--ease-out);
+}
+
+.arm-stage.is-pressed .arm-button-label { fill: rgba(232, 237, 255, 0.95); }
+
+/* Кольцо отклика: один импульс по кромке гнезда. Это единственная
+   декоративная вспышка в сцене — она подтверждает, что нажатие
+   зарегистрировано, и живёт ровно столько, сколько нужно глазу. */
+.btn-ring {
+  fill: none;
+  stroke: var(--stage-accent);
+  stroke-width: 1.4;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.arm-stage.is-pressed .btn-ring { animation: pressRing 0.7s var(--ease-out) 1; }
+
+@keyframes pressRing {
+  0%   { opacity: 0.8; transform: scale(0.72); }
+  100% { opacity: 0;   transform: scale(1.7); }
+}
+
+/* ─────────── 5б. Эстафета: кубик уступает сцену руке ─────────── */
+
+/* Две машины в одном углу весь показ — это и есть перегрузка: кубик
+   и рука тянут взгляд одновременно, и ни одна не читается. Поэтому
+   у каждой свой акт, и передача идёт не рывком на последнем слайде,
+   а весь показ: кубик тает от слайда к слайду (--cube-fade ведёт
+   скрипт), и к предпоследнему его в кадре уже нет. В финале остаётся
+   один главный предмет — рука и кнопка.
+
+   Здесь только вторая половина передачи: рука выходит на полную.
+   Гашение кубика сюда не пишется — иначе оно спорило бы с плавным
+   угасанием и на последних слайдах вернуло бы его на экран.
+
+   Класс ставится на <html> из enter() по номеру слайда, то есть
+   выводится из позиции прокрутки и снимается сам при движении вверх. */
+.is-finale .arm-stage { opacity: 1; }
+
+/* ─────────────────── 6. Финальная телеметрия ─────────────────── */
+
+/* Результат нажатия: пакет проходит систему и отвечает 200 OK.
+   Появляется только в финале и только один раз. */
+.telemetry {
+  position: fixed;
+  left: 50%;
+  bottom: 8vh;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: rgba(8, 12, 26, 0.86);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s var(--ease-out);
+}
+
+.telemetry.on { opacity: 1; }
+
+.telemetry-step {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  transition: color 0.25s ease;
+}
+
+.telemetry-step.on { color: var(--ink); }
+.telemetry-step.done { color: rgba(56, 232, 255, 0.85); }
+.telemetry-step.ok { color: #6bffb0; }
+
+.telemetry-sep { color: rgba(140, 160, 220, 0.35); font-size: 0.6875rem; }
+
+/* ─────────────────── 7. Переходы между сценами ─────────────────── */
+
+/* Слайд не просто «появляется»: он въезжает в кадр и уезжает из него.
+   Величина --t идёт от -1 (слайд ниже кадра) через 0 (в кадре) к +1
+   (выше кадра), её считает stage.js из позиции скролла.
+
+   Тип перехода задаёт data-scene: у каждой сцены он свой, но эффекты
+   не складываются в кучу — максимум два на сцену. */
+.slide > .wrap,
+.slide > .hero-content {
+  will-change: transform, opacity;
+}
+
+.stage-on .slide[data-scene] > .wrap,
+.stage-on .slide[data-scene] > .hero-content {
+  opacity: var(--op, 1);
+  transform: var(--tf, none);
+  filter: var(--fx, none);
+}
+
+/* Маска-шторка для сцен с masked reveal */
+.slide[data-scene='mask'] > .wrap { clip-path: inset(var(--mask, 0%) 0 0 0); }
+
+/* Подпись сцены в углу — технический ярлык кадра */
+.scene-tag {
+  position: fixed;
+  left: clamp(2.875rem, 7vw, 6.75rem);
+  bottom: clamp(1.125rem, 4vh, 2.5rem);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.5625rem;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  color: var(--ink-faint);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.stage-on .scene-tag { opacity: 1; }
+
+.scene-tag b {
+  color: rgba(56, 232, 255, 0.85);
+  font-weight: 600;
+}
+
+.scene-tag i {
+  width: 1.375rem;
+  height: 1px;
+  background: rgba(56, 232, 255, 0.45);
+}
+
+/* ─────────────────── 8. Узкие экраны и покой ─────────────────── */
+
+/* На узком экране декорации убираются целиком: рука и кубик там
+   некуда поставить, не отняв место у текста. */
+@media (max-width: 980px) {
+  .arm-stage, .cube-stage { display: none; }
+  .bus { left: 0.625rem; }
+  .interlude { height: 11vh; min-height: 5.25rem; padding-left: 2.125rem; }
+  .scene-tag { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blueprint { transform: none; }
+  .arm-part { transition: none; opacity: 1; transform: none; }
+  .arm-stage.is-flowing .arm-cable { animation: none; }
+
+  /* Финал показан состоянием, а не движением: палец стоит на кнопке,
+     она утоплена на полный ход, крышка подсвечена, кольцо не
+     вспыхивает. Кадр ставит pose() один раз. */
+  .arm-stage, .arm-svg { transition: none; }
+  .arm-stage.is-pressed .btn-ring { animation: none; }
+  .btn-cap, .arm-button-label { transition: none; }
+  .bus-packet { display: none; }
+  .stage-on .slide[data-scene] > .wrap,
+  .stage-on .slide[data-scene] > .hero-content {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  .slide[data-scene='mask'] > .wrap { clip-path: none; }
+}

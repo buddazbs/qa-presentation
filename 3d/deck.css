@@ -1,0 +1,305 @@
+/* ══════════════════════════════════════════════════════════════════
+   Callback Admin Tool — 3D-версия
+   Токены, типографика и компоненты берутся из ../styles.css как есть;
+   здесь только то, чего там нет: слой WebGL, раскладка «текст +
+   панель», сама панель, 3D-подписи и шина у левого края.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* WebGL-слой под виньеткой (z 1) и слайдами (z 2) */
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ─────────────────────── Текст + иллюстрация ─────────────────────── */
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 3.5rem;
+  align-items: center;
+}
+.split--flip > .visual { order: -1; }
+.split .lead { margin-bottom: 1.75rem; }
+
+/* Панель: наклон на появлении и стеклянный блик */
+.visual {
+  position: relative;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 1.125rem;
+  background: rgba(8, 12, 26, 0.55);
+  box-shadow: 0 30px 80px rgba(4, 8, 20, 0.65), 0 0 0 1px rgba(56, 232, 255, 0.04) inset;
+  overflow: hidden;
+  opacity: 0;
+  transform: perspective(1400px) rotateY(-9deg) rotateX(4deg) translateY(30px) scale(0.96);
+  transition: opacity 1.1s var(--ease-out), transform 1.3s var(--ease-out);
+}
+.split--flip .visual { transform: perspective(1400px) rotateY(9deg) rotateX(4deg) translateY(30px) scale(0.96); }
+.slide.live .visual {
+  opacity: 1;
+  transform: perspective(1400px) rotateY(-3deg) rotateX(1deg);
+  transition-delay: 0.25s;
+}
+.slide.live .split--flip .visual { transform: perspective(1400px) rotateY(3deg) rotateX(1deg); }
+
+/* Блик: полоса света проходит по стеклу, когда слайд появился */
+.visual::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.07) 48%, transparent 60%);
+  transform: translateX(-100%);
+  pointer-events: none;
+}
+.slide.live .visual::after { animation: sheen 2.4s var(--ease-io) 0.9s both; }
+@keyframes sheen { to { transform: translateX(100%); } }
+
+/* Подпись под панелью, отдельной строкой */
+.visual figcaption {
+  padding: 0.6875rem 1rem 0.75rem;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* Широкая лента: конвейер и секреты — им нужна вся ширина.
+   Без наклона: app.js меряет их по getBoundingClientRect. */
+.visual--band { border-radius: 0.875rem; margin: 1.5rem 0; }
+.visual--band,
+.slide.live .visual--band { transform: none; }
+
+/* ─────────────────────── Живое содержимое панелей ───────────────────────
+   Анимации исходной презентации (app.js) и 3D-сцены (widgets.js)
+   стоят в панели вместо картинок. Свои рамки у компонентов снимаем:
+   рамка теперь — сама панель. */
+
+.visual-body { position: relative; padding: 1.5rem; }
+
+.visual .collapse-stage { margin: 0; }
+
+.visual--band .pipeline { padding: 0.75rem 1.5rem 1.5rem; }
+.visual--band .pipe-steps { margin-top: 3rem; }
+
+.cage-panel { display: grid; justify-items: center; gap: 1.125rem; padding-top: 2rem; }
+.cage-panel .cage { width: clamp(13rem, 19vw, 17.5rem); }
+.cage-panel .guard-log { justify-self: stretch; background: rgba(6, 10, 24, 0.5); }
+.cage-panel .guard-log ul { min-height: 5.5rem; }
+
+.visual .pkg-history { border: 0; border-radius: 0; background: none; backdrop-filter: none; padding: 1.375rem 1.5rem; }
+.visual .pkg-versions { min-height: 18rem; }
+
+.visual .ide { border: 0; border-radius: 0; background: none; box-shadow: none; }
+/* Высота под окно подсказок: панель обрезает всё, что за краем */
+.visual .ide-body { min-height: 20rem; }
+
+.visual--band .secret-stage { padding: 0.75rem 0 0.25rem; }
+.visual--band .gate { background: rgba(12, 17, 36, 0.8); }
+
+/* Заголовок слайда с лентой: текст слева, пояснение справа */
+.split--head { align-items: end; }
+.split--head .lead { margin-bottom: 0; }
+.split--head .note { margin: 0; }
+
+/* 3D-сцена: канвас под HTML-подписями, координаты подписей считает JS */
+.gl-stage { position: relative; aspect-ratio: 4 / 3; }
+/* Две базы стоят в ряд — сцене нужна ширина, а не высота */
+.gl-stage--wide { aspect-ratio: 16 / 11; }
+.gl-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.gl-tags { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.gl-tag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 0.1875rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--c, var(--cyan)) 32%, transparent);
+  border-radius: 0.375rem;
+  background: rgba(8, 12, 26, 0.72);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  will-change: transform;
+  transition: color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+/* Узел только что отправил колбэк */
+.gl-tag.on {
+  color: var(--ink);
+  border-color: var(--c);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--c) 45%, transparent);
+}
+.gl-tag--core,
+.gl-tag--db,
+.gl-tag--lane { padding: 0; border: 0; background: none; }
+.gl-tag--core b {
+  font-family: var(--sans);
+  font-size: 1.375rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #fff;
+  text-shadow: 0 0 18px rgba(56, 232, 255, 0.85);
+}
+.gl-tag--db { display: grid; justify-items: center; gap: 0.375rem; }
+.gl-tag--db .db-name { margin: 0; font-size: 0.8125rem; color: var(--ink); }
+.gl-tag--valve {
+  --c: var(--amber);
+  font-size: 0.59375rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+.gl-tag--lane { font-size: 0.625rem; letter-spacing: 0.08em; }
+.gl-tag--read { color: rgba(107, 255, 176, 0.8); }
+.gl-tag--write { color: rgba(255, 92, 110, 0.8); }
+
+/* ─────────────────────── Шина у левого края ───────────────────────
+   Как в stage.css исходной презентации: провод между слайдами, по
+   которому идут пакеты с настоящими сущностями проекта. */
+
+.bus {
+  position: fixed;
+  left: clamp(0.875rem, 3.4vw, 3.375rem);
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  z-index: 1;
+  pointer-events: none;
+}
+.bus-rail {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(140, 160, 220, 0.22) 12%, rgba(140, 160, 220, 0.22) 88%, transparent 100%);
+}
+/* Пройденная часть — сигнал уже прошёл по проводу */
+.bus-live {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: calc(var(--run, 0) * 100%);
+  background: linear-gradient(180deg, rgba(56, 232, 255, 0.55), rgba(139, 108, 255, 0.4));
+  box-shadow: 0 0 12px rgba(56, 232, 255, 0.35);
+}
+/* Разрыв шины на слайде «Как было» */
+.bus.is-broken .bus-live { opacity: 0.25; }
+.bus.is-broken .bus-rail {
+  background: repeating-linear-gradient(180deg, rgba(255, 92, 110, 0.5) 0 0.4375rem, transparent 0.4375rem 1.25rem);
+}
+.bus-packet {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -0.25rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4375rem;
+  white-space: nowrap;
+  opacity: 0;
+}
+.bus-packet i {
+  flex: none;
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 2px;
+  background: var(--cyan);
+  box-shadow: 0 0 10px rgba(56, 232, 255, 0.8);
+}
+.bus-packet span {
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  color: rgba(56, 232, 255, 0.85);
+  text-transform: lowercase;
+  /* Подпись идёт вдоль провода: поперёк она наезжала бы на текст слайда */
+  writing-mode: vertical-rl;
+}
+
+/* Ярлык сцены в углу — технический ярлык кадра */
+.scene-tag {
+  position: fixed;
+  left: clamp(2.875rem, 7vw, 6.75rem);
+  bottom: clamp(1.125rem, 4vh, 2.5rem);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  color: var(--ink-faint);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.scene-tag.on { opacity: 1; }
+.scene-tag b { color: rgba(56, 232, 255, 0.85); font-weight: 600; }
+.scene-tag i { width: 1.375rem; height: 1px; background: rgba(56, 232, 255, 0.45); }
+
+/* ─────────────────────── Правки компонентов ─────────────────────── */
+
+/* Титул стоит на ярком ядре галактики: тень отделяет подзаголовок от
+   фона, но сквозь прозрачную заливку букв она темнила бы и сам титул */
+.slide--hero .hero-content { text-shadow: 0 0 40px rgba(5, 7, 14, 0.8); }
+.hero-title {
+  text-shadow: none;
+  filter: drop-shadow(0 0 28px rgba(150, 215, 255, 0.35)) drop-shadow(0 2px 10px rgba(5, 7, 14, 0.55));
+}
+.hero-title .ch { background-image: linear-gradient(175deg, #fff 45%, #e6f7ff 72%, #d4ccff); }
+
+.cards--2x2 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.875rem; }
+.cards--2x2 .card { padding: 1.125rem 1.125rem 1.25rem; }
+.cards--2x2 .card-ico { width: 2.125rem; height: 2.125rem; margin-bottom: 0.625rem; }
+.cards--2x2 .card h3 { font-size: 0.96875rem; }
+.cards--2x2 .card p { font-size: 0.8125rem; }
+
+.cage-facts li { backdrop-filter: blur(6px); }
+
+.split .pkg-code { margin-bottom: 1.125rem; }
+
+/* Статистика и «честно» стоят прямо на облаке — панели плотнее */
+.slide--stats .stat,
+.honest li { background: rgba(12, 17, 36, 0.78); backdrop-filter: blur(10px); }
+
+/* ═══════════════════════ Адаптив ═══════════════════════ */
+
+@media (max-width: 1000px) {
+  .split { grid-template-columns: 1fr; gap: 2rem; }
+  .split--flip > .visual { order: 0; }
+  .visual,
+  .split--flip .visual,
+  .slide.live .visual,
+  .slide.live .split--flip .visual { transform: none; }
+  /* Одна колонка: сцена во всю ширину, но не выше экрана */
+  .gl-stage,
+  .gl-stage--wide { aspect-ratio: 16 / 10; max-height: 70vh; }
+  /* Шина уходит к самому краю, ярлык сел бы на панели */
+  .bus { left: 0.625rem; }
+  .scene-tag { display: none; }
+}
+
+/* Провода к карточкам есть только в широкой раскладке (styles.css
+   прячет их до 1000px) — место под ними нужно только тут */
+@media (min-width: 1001px) {
+  .visual--band .secret-token { margin-bottom: 5.5rem; }
+}
+
+@media (max-width: 620px) {
+  .cards--2x2 { grid-template-columns: 1fr; }
+  /* На телефоне сцене нужна высота: подписи стоят над и под объектами */
+  .gl-stage,
+  .gl-stage--wide { aspect-ratio: 1; }
+  .visual-body { padding: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .visual { opacity: 1 !important; transform: none !important; }
+  .bus-packet { display: none; }
+}
