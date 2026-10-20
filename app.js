@@ -1,7 +1,7 @@
 /* ══════════════════════════════════════════════════════════════════
    Callback Admin Tool — презентация
    Ванильный JS, без зависимостей. Всё, что здесь оживает, объявлено
-   в index.html: #dots, #heroTitle, #collapseStage, #pipePath,
+   в classic.html: #dots, #heroTitle, #collapseStage, #pipePath,
    #cage, #pkgVersions, #ide, #dbstage, #secretStage, .num[data-count],
    .reveal[data-d].
    Фон, кубик, рука и переходы между слайдами живут в stage.js.
@@ -127,7 +127,7 @@
       el.style.transitionDelay = `${Number(el.dataset.d) || 0}ms`;
     });
 
-    // Внешний режим (signal.html): слайды — карточки в 3D-сцене, прокрутки нет.
+    // Внешний режим (index.html): слайды — карточки в 3D-сцене, прокрутки нет.
     // Какой слайд «живой», решает сцена — когда камера доехала до карточки.
     if (EXTERNAL) {
       window.deck = {
@@ -368,7 +368,7 @@
     onEnter.push((s) => {
       if (!s.classList.contains('slide--collapse')) return;
       clearTimeout(timer);
-      // В signal.html слайд до показа скрыт и при запуске мерил ширину 0 —
+      // В index.html слайд до показа скрыт и при запуске мерил ширину 0 —
       // раскладываем заново по настоящей ширине (сцена сейчас не схлопнута)
       layout();
       if (calm()) { scatter(); stage.classList.add('merged'); return; }
@@ -414,7 +414,7 @@
       if (!w || !h) { stops = []; return; }   // на узком экране трек скрыт
       railY = h / 2;
       // Координаты вёрстки, а не экрана: на них не влияют ни наклон
-      // .visual при появлении, ни 3D-карточка в signal.html. Рельс стоит
+      // .visual при появлении, ни 3D-карточка в index.html. Рельс стоит
       // в .pipeline с left: 0, список шагов — там же
       const list = steps[0].offsetParent;
       stops = steps.map((li) => list.offsetLeft + li.offsetLeft + li.offsetWidth / 2);
@@ -921,7 +921,7 @@
       if (!caret) return;
       const b = box.querySelector('.ide-body').getBoundingClientRect();
       const c = caret.getBoundingClientRect();
-      const k = b.width / box.querySelector('.ide-body').offsetWidth || 1;   // масштаб карточки в signal.html
+      const k = b.width / box.querySelector('.ide-body').offsetWidth || 1;   // масштаб карточки в index.html
       pop.style.setProperty('--pop-x', `${(c.left - b.left) / k - 8}px`);
       pop.style.setProperty('--pop-y', `${(c.bottom - b.top) / k + 4}px`);
     }
@@ -982,7 +982,7 @@
   /* ═════════════════════ Запуск ═════════════════════ */
 
   heroTitle();
-  if (!EXTERNAL) {   // в signal.html навигацию и хром ведёт сцена
+  if (!EXTERNAL) {   // в index.html навигацию и хром ведёт сцена
     chrome();
     keys();
   }

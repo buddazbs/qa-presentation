@@ -36,7 +36,7 @@ const svg = (tag, attrs) => {
 };
 
 /**
- * @param {HTMLElement} root — контейнер .boot из signal.html
+ * @param {HTMLElement} root — контейнер .boot из index.html
  * @param {Array<{ id: string, label: string, jp: string }>} steps — этапы по порядку
  * @param {{ reduce: boolean }} opts
  */

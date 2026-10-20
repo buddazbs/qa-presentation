@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Callback Admin Tool — почему мы ушли от Postman</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="stage.css">
+</head>
+<body>
+
+<!-- Фон-чертёж, шина данных, кубик и механическая рука ставятся
+     из stage.js: разметка зависит от числа слайдов, поэтому
+     держать её здесь руками — верный способ рассинхронизировать. -->
+<div class="vignette" aria-hidden="true"></div>
+
+<!-- Прогресс и навигация -->
+<div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+
+<nav class="dots" id="dots" aria-label="Навигация по слайдам"></nav>
+
+<header class="topbar">
+  <span class="brand"><b>CAT</b> · Callback Admin Tool</span>
+  <span class="hint" id="hint">↓ / Space / колесо</span>
+</header>
+
+<main id="deck">
+
+  <!-- ════════════════════════ 1. ТИТУЛ ════════════════════════ -->
+  <section class="slide slide--hero" data-slide="Титул">
+    <div class="hero-orbit" aria-hidden="true">
+      <span></span><span></span><span></span>
+    </div>
+    <div class="hero-content">
+      <p class="eyebrow reveal" data-d="0">QA-инструмент платёжного контура</p>
+      <h1 class="hero-title" id="heroTitle" aria-label="Callback Admin Tool">Callback Admin Tool</h1>
+      <p class="hero-sub reveal" data-d="600">
+        Мы заменили коллекцию Postman на собственный сервис.<br>
+        Вот что мы на этом выиграли — и чего это стоило.
+      </p>
+      <div class="hero-meta reveal" data-d="900">
+        <span><b>Express 5</b> + PostgreSQL</span>
+        <span><b>React 19</b> + Vite 8</span>
+        <span><b>QuickJS</b> sandbox</span>
+        <span><b>TypeScript</b> в редакторе скриптов</span>
+      </div>
+    </div>
+    <div class="scroll-cue reveal" data-d="1400" aria-hidden="true"><i></i></div>
+  </section>
+
+  <!-- ════════════════════════ 2. ЧТО ЭТО ════════════════════════ -->
+  <section class="slide" data-slide="Что это">
+    <div class="wrap">
+      <h2 class="reveal">Что делает CAT</h2>
+      <p class="lead reveal" data-d="120">
+        Платёжная система присылает нам колбэк о статусе платежа. Чтобы
+        протестировать обработку, этот колбэк надо <b>воспроизвести</b> —
+        точно, с правильной подписью, по реальной транзакции.
+      </p>
+      <div class="cards">
+        <article class="card reveal" data-d="200">
+          <div class="card-ico" aria-hidden="true">
+            <svg viewBox="0 0 48 48"><path class="dash" d="M6 24h12l4-10 6 20 4-10h10"/></svg>
+          </div>
+          <h3>Воспроизвести по id</h3>
+          <p>Берём реальную транзакцию из БД рынка по её идентификатору и
+             дозаполняем ей поля колбэка автоматически.</p>
+        </article>
+        <article class="card reveal" data-d="320">
+          <div class="card-ico" aria-hidden="true">
+            <svg viewBox="0 0 48 48"><path class="dash" d="M16 12l-9 12 9 12M32 12l9 12-9 12M27 9l-6 30"/></svg>
+          </div>
+          <h3>Собрать запрос скриптом</h3>
+          <p>Тело, подпись, заголовки, URL и query собирает pre-request
+             скрипт — в редакторе, который знает переменные колбэка.</p>
+        </article>
+        <article class="card reveal" data-d="440">
+          <div class="card-ico" aria-hidden="true">
+            <svg viewBox="0 0 48 48"><rect class="dash" x="10" y="8" width="28" height="32" rx="3"/><path class="dash" d="M17 18h14M17 25h14M17 32h8"/></svg>
+          </div>
+          <h3>Хранить на всех</h3>
+          <p>Колбэки, шаблоны ПС, переменные рынков и общий код скриптов
+             живут в базе, а не в файле на чьём-то ноутбуке.</p>
+        </article>
+        <article class="card reveal" data-d="560">
+          <div class="card-ico" aria-hidden="true">
+            <svg viewBox="0 0 48 48"><path class="dash" d="M8 36V12M8 36h32"/><path class="dash" d="M14 30l8-9 7 6 9-13"/></svg>
+          </div>
+          <h3>История выполнений</h3>
+          <p>Полный запрос и полный ответ по каждой отправке — видно, что
+             именно ушло и что вернулось.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════ 3. КАК БЫЛО В POSTMAN ════════════════════════ -->
+  <section class="slide slide--collapse" data-slide="Как было">
+    <div class="wrap">
+      <h2 class="reveal">Как было в Postman</h2>
+      <p class="lead reveal" data-d="120">
+        И даже не одна коллекция, а <b>куча</b>: у каждого своя, выгруженная в
+        свой момент. Внутри — по запросу на каждую платёжную систему и каждую
+        операцию, и в каждом запросе <b>своя копия</b> pre-request скрипта.
+      </p>
+      <div class="collapse-stage" id="collapseStage" aria-hidden="true">
+        <div class="collapse-target" id="collapseTarget">
+          <code>один сервис · одна история на всех</code>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════ 4. ПОЧЕМУ УШЛИ ════════════════════════ -->
+  <section class="slide" data-slide="Почему не Postman">
+    <div class="wrap wrap--wide">
+      <h2 class="reveal">Почему не Postman</h2>
+      <p class="lead reveal" data-d="120">
+        Postman — хороший инструмент. Просто не для этой задачи: нам нужен был
+        не клиент для запросов, а <b>сервис с доступом к данным и общей историей</b>.
+      </p>
+      <div class="versus" id="versus">
+        <div class="versus-head">
+          <span></span>
+          <span class="vs-old">Коллекция Postman</span>
+          <span class="vs-new">CAT</span>
+        </div>
+
+        <div class="vrow reveal" data-d="200">
+          <span class="vrow-k">Данные транзакции</span>
+          <span class="vrow-old">Копировать поля руками из БД в запрос</span>
+          <span class="vrow-new">«Отправить по id» — сервис сам читает транзакцию рынка</span>
+        </div>
+        <div class="vrow reveal" data-d="270">
+          <span class="vrow-k">Общий код</span>
+          <span class="vrow-old">Своя копия скрипта в каждом запросе каждого экспорта</span>
+          <span class="vrow-new">QA Package: одна библиотека с версиями, различия — в данных колбэка</span>
+        </div>
+        <div class="vrow reveal" data-d="340">
+          <span class="vrow-k">Окружения</span>
+          <span class="vrow-old">Environment у каждого свой, адрес стенда вписан руками</span>
+          <span class="vrow-new">Переменные рынка общие, колбэк знает все свои рынки</span>
+        </div>
+        <div class="vrow reveal" data-d="410">
+          <span class="vrow-k">Секреты</span>
+          <span class="vrow-old">Лежат в окружении, которое экспортируют и пересылают</span>
+          <span class="vrow-new">Доступны только скрипту; в URL, тело и лог не попадают</span>
+        </div>
+        <div class="vrow reveal" data-d="480">
+          <span class="vrow-k">Что может скрипт</span>
+          <span class="vrow-old">Полноценный рантайм, включая собственные запросы в сеть</span>
+          <span class="vrow-new">QuickJS без сети и модулей, с лимитами памяти, стека и времени</span>
+        </div>
+        <div class="vrow reveal" data-d="550">
+          <span class="vrow-k">Имена переменных</span>
+          <span class="vrow-old">По памяти или подсмотреть в соседнем запросе</span>
+          <span class="vrow-new"><code>vars.</code> сам показывает ключи колбэка и значения по рынкам</span>
+        </div>
+        <div class="vrow reveal" data-d="620">
+          <span class="vrow-k">История</span>
+          <span class="vrow-old">Локальная, у каждого своя</span>
+          <span class="vrow-new">Общая: полный запрос и ответ по каждой отправке</span>
+        </div>
+        <div class="vrow reveal" data-d="690">
+          <span class="vrow-k">Новый человек в команде</span>
+          <span class="vrow-old">«Вот коллекция, разберись»</span>
+          <span class="vrow-new">Два встроенных гайда, 19 уроков — в том числе подпись «как в Postman»</span>
+        </div>
+      </div>
+      <p class="note reveal" data-d="780">
+        Честно: слева — претензия не к Postman, а к тому, как мы его
+        использовали. Пока задача звучала «дёрнуть ручку и посмотреть ответ»,
+        коллекции хватало. Не хватило её там, где понадобились <b>общие</b>
+        данные, история и одна версия правды на всех.
+      </p>
+    </div>
+  </section>
+
+  <!-- ════════════════════════ 5. КОНВЕЙЕР ════════════════════════ -->
+  <section class="slide slide--pipe" data-slide="Конвейер">
+    <div class="wrap wrap--wide">
+      <h2 class="reveal">Конвейер одной отправки</h2>
+      <p class="lead reveal" data-d="120">
+        Восемь шагов от формы до исходящего HTTP-запроса: шесть в
+        <code>prepareCallbackRequest()</code>, потом скрипт и проверка адреса.
+        Порядок важен: секреты изымаются <b>до</b> подстановки, поэтому
+        физически не могут попасть в URL.
+      </p>
+      <div class="pipeline" id="pipeline">
+        <svg class="pipe-track" viewBox="0 0 1000 120" preserveAspectRatio="none" aria-hidden="true">
+          <path id="pipePath" d="M20 60 H980" />
+          <circle id="pipeDot" r="7" />
+        </svg>
+        <ol class="pipe-steps">
+          <li data-step="1"><b>Переменные</b><span>объявленные + с формы</span></li>
+          <li data-step="2" class="step--hot"><b>Изъятие секретов</b><span>в подстановке не участвуют</span></li>
+          <li data-step="3"><b>По id и статус</b><span>очистка формы, статус — только с формы</span></li>
+          <li data-step="4"><b>БД рынка</b><span>только при <code>fillFromDb</code></span></li>
+          <li data-step="5"><b>Переменные рынка</b><span>нижний слой: только пустое</span></li>
+          <li data-step="6"><b>Подстановка и URL</b><span>путь · тело · заголовки · query</span></li>
+          <li data-step="7"><b>Скрипт</b><span>QuickJS → <code>{ body, headers, url, method, query }</code></span></li>
+          <li data-step="8" class="step--hot"><b>SSRF-проверка</b><span><code>assertSafeOutboundUrl</code> перед HTTP</span></li>
+        </ol>
+      </div>
+      <p class="note reveal" data-d="400">
+        Значение берётся с самого сильного слоя: <b>форма</b> → <b>БД рынка</b>
+        → <b>переменные рынка</b>. Как окружение в Postman, только одно на всю
+        команду, и заполняет оно лишь то, что осталось пустым.
+      </p>
+    </div>
+  </section>
+
+  <!-- ════════════════════════ 6. ПЕСОЧНИЦА ════════════════════════ -->
+  <section class="slide slide--cage" data-slide="Песочница">
+    <div class="wrap wrap--wide">
+      <h2 class="reveal">Скрипт пользователя в клетке</h2>
+      <p class="lead reveal" data-d="120">
+        Pre-request скрипт пишет QA-инженер. Значит, исходить надо из того, что
+        в нём может оказаться что угодно.
+      </p>
+      <div class="cage-layout">
+        <div class="cage-col">
+          <div class="cage" id="cage">
+            <div class="cage-bars" aria-hidden="true"></div>
+            <div class="cage-shield" aria-hidden="true"></div>
+            <div class="cage-core">
+              <span class="cage-core-label">QuickJS</span>
+              <code>vars · body · secrets · qa<br>crypto · time · utils</code>
+            </div>
+          </div>
+          <ul class="cage-legend">
+            <li><i class="ring-key ring-key--static"></i><span>внешнее кольцо — <b>статический guard</b>, до запуска</span></li>
+            <li><i class="ring-key ring-key--runtime"></i><span>внутреннее — <b>лимиты рантайма</b>, уже во время</span></li>
+          </ul>
+        </div>
+        <div class="cage-side">
+          <ul class="cage-facts">
+            <li class="reveal" data-d="200"><b>QuickJS</b>, а не <code>vm</code> и не <code>eval</code>: ни сети, ни модулей в рантайме просто нет</li>
+            <li class="reveal" data-d="280"><b>Отдельный дочерний процесс</b> с урезанным окружением <code>env: { PATH }</code></li>
+            <li class="reveal" data-d="360"><b>Восемь конструкций</b> отклоняются <i>до запуска</i> — <code>astGuard.js</code></li>
+            <li class="reveal" data-d="440"><b>16 МБ</b> памяти, <b>256 КБ</b> стека</li>
+            <li class="reveal" data-d="520"><b>Два таймера:</b> interrupt изнутри рантайма и <code>SIGKILL</code> из родителя через <code>timeout + 250 мс</code></li>
+          </ul>
+          <div class="guard-log reveal" data-d="600" aria-hidden="true">
+            <div class="guard-log-head">
+              <span>журнал отказов</span>
+              <span class="guard-log-count" id="guardCount">0</span>
+            </div>
+            <ul id="guardLog"></ul>
+          </div>
+        </div>
+      </div>
+      <p class="note reveal" data-d="700">
+        Статический guard знает ровно восемь конструкций: <code>require(</code>,
+        <code>import(</code>, <code>process.</code>, <code>child_process</code>,
+        <code>WebAssembly</code>, <code>fetch(</code>, <code>XMLHttpRequest</code>,
+        <code>WebSocket</code>. Единственный пропуск — <code>import … from 'qa-package'</code>:
+        он ещё до guard'а переписывается в <code>const { … } = qa</code>.
+        Бесконечный цикл в списке <b>не значится</b> — его останавливает таймер.
+      </p>
+    </div>
+  </section>
+
+  <!-- ════════════════════════ 7. QA PACKAGE ════════════════════════ -->
+  <section class="slide slide--pkg" data-slide="QA Package">
+    <div class="wrap wrap--wide">
+      <h2 class="reveal">QA Package: общий код с историей</h2>
+      <p class="lead reveal" data-d="120">
+        Подпись OkPay, сортировка ключей, клиент провайдера — раньше всё это
+        жило копией в каждом скрипте. Теперь это <b>одна библиотека на
+        команду</b>, и у каждого её сохранения есть номер.
+      </p>
+      <div class="pkg-layout">
+        <div class="pkg-side">
+          <pre class="pkg-code reveal" data-d="200"><span class="c">// два равноправных способа</span>
+<span class="k">qa</span>.utils.randomString(<span class="n">8</span>)
+<span class="k">import</span> { utils } <span class="k">from</span> <span class="s">'qa-package'</span></pre>
+          <ul class="cage-facts">
+            <li class="reveal" data-d="280"><b>Версию считает сервер:</b> клиент выбирает patch, minor или major, номер нельзя переиспользовать</li>
+            <li class="reveal" data-d="360"><b>История только дописывается:</b> 50 снимков, откат — это старый код новой версией</li>
+            <li class="reveal" data-d="440"><b>Двое правят сразу</b> — второй получает <code>409</code>, а не молча затирает первого</li>
+            <li class="reveal" data-d="520"><b>Типы <code>.d.ts</code></b> собираются из JSDoc исходника — из них подсказки в редакторе</li>
+          </ul>
+        </div>
+        <div class="pkg-history reveal" data-d="300" id="pkgHistory" aria-hidden="true">
+          <div class="pkg-history-head"><span>история пакета</span><span class="pkg-live">append-only</span></div>
+          <ol class="pkg-versions" id="pkgVersions"></ol>
+          <div class="pkg-conflict" id="pkgConflict"><b>409</b> пакет изменил кто-то другой — обновите страницу</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════ 8. РЕДАКТОР ════════════════════════ -->
+  <section class="slide slide--ide" data-slide="Редактор">
+    <div class="wrap wrap--wide">
+      <h2 class="reveal">Редактор, который знает колбэк</h2>
+      <p class="lead reveal" data-d="120">
+        «Как там называлась переменная с адресом?» — больше не вопрос.
+        Набираешь <code>vars.</code> и видишь параметры колбэка и переменные
+        его рынков, <b>вместе со значениями</b> по каждому рынку.
+      </p>
+      <div class="ide-layout">
+        <div class="ide reveal" data-d="200" id="ide" aria-hidden="true">
+          <div class="ide-bar"><i></i><i></i><i></i><span>pre-request script</span></div>
+          <div class="ide-body">
+            <ol class="ide-lines" id="ideLines"></ol>
+            <div class="ide-pop" id="idePop">
+              <ul class="ide-items" id="ideItems"></ul>
+              <div class="ide-doc" id="ideDoc"></div>
+            </div>
+          </div>
+        </div>
+        <ul class="cage-facts">
+          <li class="reveal" data-d="280"><b>TypeScript LanguageService</b> в Web Worker: автодополнение, hover, сигнатуры, диагностика</li>
+          <li class="reveal" data-d="360"><b>Ни одного захардкоженного <code>qa.*</code></b> во фронтенде: декларации приходят с бэкенда</li>
+          <li class="reveal" data-d="440"><b><code>secrets.</code> показывает только ключи</b> — значение секрета в подсказку не попадает</li>
+          <li class="reveal" data-d="520"><b>≈1 МБ</b> TypeScript грузится только с первым открытым редактором</li>
+          <li class="reveal" data-d="600"><b>Run</b> прогоняет скрипт с формы — без отправки и без Save</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════ 9. ДВЕ БАЗЫ ════════════════════════ -->
+  <section class="slide slide--db" data-slide="Две базы">
+    <div class="wrap wrap--wide">
+      <h2 class="reveal">Инвариант двух баз</h2>
+      <p class="lead reveal" data-d="120">
+        Мы читаем боевые тестовые базы рынков. Поэтому направление доступа
+        зафиксировано жёстко — и защищено тестом, который обязан быть зелёным.
+      </p>
+      <div class="dbstage" id="dbstage">
+        <div class="db db--admin">
+          <span class="db-name">callback_admin_tool</span>
+          <span class="db-mode ok">чтение и запись</span>
+        </div>
+        <div class="db-flow" aria-hidden="true">
+          <div class="flow-line flow-line--read"><i></i><i></i><i></i></div>
+          <div class="flow-valve" title="Клапан в одну сторону">
+            <span class="valve-label">только чтение</span>
+          </div>
+          <div class="flow-line flow-line--blocked"><i></i></div>
+        </div>
+        <div class="db db--market">
+          <span class="db-name">БД рынка</span>
+          <span class="db-mode warn">только чтение, только по запросу</span>
+        </div>
+      </div>
+      <div class="db-entries">
+        <div class="entry reveal" data-d="300"><code>fillFromDb: true</code><span>режим «Отправить по id»</span></div>
+        <div class="entry reveal" data-d="400"><code>POST /utilities/resolve-transaction</code><span>заполнение формы без отправки</span></div>
+      </div>
+      <p class="note reveal" data-d="520">
+        Ровно два входа, больше ни одного. Обычная отправка колбэка в базу
+        рынка <b>не ходит вообще</b> — это проверяет
+        <code>sendWithoutDbLookup.test.js</code>. Переменные рынка — это
+        строки нашей базы, а не чтение чужой.
+      </p>
+    </div>
+  </section>
+
+  <!-- ════════════════════════ 10. СЕКРЕТЫ ════════════════════════ -->
+  <section class="slide slide--secret" data-slide="Секреты">
+    <div class="wrap">
+      <h2 class="reveal">Куда не попадает секрет</h2>
+      <p class="lead reveal" data-d="120">
+        Переменная с <code>secret: true</code> видна <b>только</b> внутри
+        скрипта, в объекте <code>secrets</code>. В <code>{{...}}</code> она не
+        подставляется — значит, не может утечь ни в URL, ни в тело, ни в лог.
+      </p>
+      <div class="secret-stage" id="secretStage">
+        <div class="secret-token" id="secretToken"><code>merchantKey</code></div>
+        <svg class="secret-wires" id="secretWires" aria-hidden="true"></svg>
+        <div class="secret-gates">
+          <div class="gate gate--pass" data-gate="script">
+            <span class="gate-ico">✓</span>
+            <b>скрипт</b><span><code>secrets.merchantKey</code></span>
+          </div>
+          <div class="gate gate--block" data-gate="url">
+            <span class="gate-ico">✕</span><b>URL</b><span>подстановка</span>
+          </div>
+          <div class="gate gate--block" data-gate="body">
+            <span class="gate-ico">✕</span><b>тело</b><span>подстановка</span>
+          </div>
+          <div class="gate gate--block" data-gate="log">
+            <span class="gate-ico">✕</span><b>история</b><span>лог выполнения</span>
+          </div>
+        </div>
+      </div>
+      <p class="note reveal" data-d="600">
+        Подпись при этом всё равно получается: скрипт считает HMAC внутри
+        песочницы и возвращает уже подписанное тело. Пустой на форме секрет
+        можно держать переменной рынка — он всё равно уйдёт только в песочницу.
+      </p>
+    </div>
+  </section>
+
+  <!-- ════════════════════════ 11. ЦИФРЫ ════════════════════════ -->
+  <section class="slide slide--stats" data-slide="Цифры">
+    <div class="wrap wrap--wide">
+      <h2 class="reveal">Где мы сейчас</h2>
+      <div class="stats">
+        <div class="stat reveal" data-d="100"><b class="num" data-count="10139">0</b><span>строк бэкенда</span></div>
+        <div class="stat reveal" data-d="160"><b class="num" data-count="17947">0</b><span>строк фронтенда</span></div>
+        <div class="stat reveal" data-d="220"><b class="num" data-count="52">0</b><span>HTTP-эндпоинта</span></div>
+        <div class="stat reveal" data-d="280"><b class="num accent" data-count="43">0</b><span>файла тестов бэкенда</span></div>
+        <div class="stat reveal" data-d="340"><b class="num accent" data-count="268">0</b><span>тестов фронтенда</span></div>
+        <div class="stat reveal" data-d="400"><b class="num" data-count="15">0</b><span>готовых шаблонов ПС</span></div>
+        <div class="stat reveal" data-d="460"><b class="num" data-count="0">0</b><span>библиотек тест-даблов</span></div>
+      </div>
+      <div class="stats-note reveal" data-d="600">
+        <p>
+          Бэкенд проверяется голым <code>node:test</code> и <code>assert</code>, подмена
+          модулей — через <code>require.cache</code>. Ни <code>sinon</code>, ни
+          <code>proxyquire</code>, ни <code>node-mocks-http</code>: меньше
+          зависимостей — меньше того, что может сломаться не по нашей вине.
+          Фронтенд — Vitest и отдельная проверка границ слоёв FSD.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════ 12. ЧЕСТНО ════════════════════════ -->
+  <section class="slide" data-slide="Честно">
+    <div class="wrap">
+      <h2 class="reveal">Честно: чего мы не делаем</h2>
+      <p class="lead reveal" data-d="120">
+        Презентация без этого слайда была бы рекламой. CAT — <b>внутренний
+        тестовый контур</b>, и часть рисков принята осознанно, а не пропущена.
+      </p>
+      <ul class="honest">
+        <li class="reveal" data-d="200">
+          <b>Наружу не смотрит.</b> Доступа из интернета нет, данные — тестовые
+          транзакции тестовых рынков.
+        </li>
+        <li class="reveal" data-d="280">
+          <b>Секреты колбэков лежат в базе открытым текстом.</b> Записано в
+          <code>docs/RISK-ACCEPTANCE.md</code> как принятый риск.
+        </li>
+        <li class="reveal" data-d="360">
+          <b>До Postgres нет TLS</b>, JWT живёт в <code>localStorage</code>.
+          Для внутреннего контура — приемлемо.
+        </li>
+        <li class="reveal" data-d="440">
+          <b>Условие отзыва:</b> если инструмент выставят наружу или заведут в
+          него настоящий ключ — все эти решения пересматриваются заново.
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ════════════════════════ 13. ФИНАЛ ════════════════════════ -->
+  <section class="slide slide--final" data-slide="Итог">
+    <div class="final-rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    <div class="wrap">
+      <h2 class="final-title reveal">Главная мысль</h2>
+      <p class="final-line reveal" data-d="200">
+        Коллекция запросов описывает, <b>как постучать</b> в платёжную систему.
+      </p>
+      <p class="final-line final-line--accent reveal" data-d="600">
+        Нам нужно было описать, <b>что такое колбэк</b> — и дать это команде
+        как сервис.
+      </p>
+      <p class="final-sub reveal" data-d="1000">
+        Поэтому платёжная система у нас — строка в базе,<br>
+        подпись — скрипт в песочнице, общий код — пакет с версиями,<br>
+        а история отправок — общая.
+      </p>
+      <div class="final-cta reveal" data-d="1300">
+        <code>npm test</code>
+        <span class="final-badge">43 / 43 ✓</span>
+        <code>pnpm test</code>
+        <span class="final-badge">268 / 268 ✓</span>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+<script src="stage.js"></script>
+</body>
+</html>
