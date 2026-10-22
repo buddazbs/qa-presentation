@@ -1,9 +1,14 @@
-// Логотип QA Platform в 3D: знак Layers — тот же, что в сайдбаре платформы, —
-// внутри тонкой пластины жидкого стекла. Стекло прозрачное и преломляет город
-// за собой, цвет бренда — только лёгкий лиловый оттенок в толще стекла и
-// радужный перелив по кромке: пластина не перекрывает кадр плотным пятном. Три слоя знака — три части платформы
-// (колбэки, моки, общий код): когда уходит загрузочный экран, они ложатся
-// друг на друга по очереди и дальше стоят неподвижно.
+// Логотип QA Platform в 3D — тот же знак, которым заканчивается вступление
+// (signal/intro.js): тёмная плитка со скруглёнными углами, тонкое
+// циановое кольцо по краю, три слоя знака Layers циановой трубкой на разной
+// высоте над плиткой, верхний — почти белый. Вступление садит свой плоский
+// знак ровно на эту плитку (logoRect в main.js) и растворяется в нём —
+// поэтому пропорции, цвета и высоты слоёв здесь те же, что в intro.css:
+// плитка 220, скругление 48, знак 152, слои на 8/22/36 над плиткой.
+//
+// Знак собран во вступлении, поэтому здесь он с первого кадра целый и стоит
+// лицом к камере. Покачивание и отклик на курсор плавно набираются уже после
+// перехода — в момент стыка знак неподвижен, шва не видно.
 //
 // Знак — иконка Layers из Lucide (ISC License, © Lucide Icons and
 // Contributors). Её контуры не перерисованы вручную: браузер сам проходит
@@ -11,6 +16,8 @@
 // становится объёмным, с круглыми концами, как stroke-linecap у иконки.
 
 import * as THREE from '../3d/vendor/three.module.js';
+import { INK } from './signage.js';
+import { roundedRect } from './column.js';
 
 // Сверху вниз: ромб верхнего слоя и два «уголка» под ним
 const LAYER_PATHS = [
@@ -18,16 +25,17 @@ const LAYER_PATHS = [
   'M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12',
   'M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17',
 ];
-// Бренд: BRAND_ACCENT_LIGHT тёмной темы сайдбара — оттенок толщи стекла
-const BRAND = '#6a4fe0';
-// Сборка знака: слой опускается за DROP с, следующий — через STAGGER с
-const DROP = 0.9;
-const STAGGER = 0.16;
 
-const TILE = 1.9;      // сторона пластины
-const DEPTH = 0.22;    // толщина без скругления кромки
-const GLYPH = 1.3;     // ширина знака в пластине
-const STROKE = 0.08;   // радиус трубки штриха (stroke-width 2.5 из 24)
+export const TILE = 1.9;                // сторона плитки
+const PX = TILE / 220;                  // единица макета вступления (плитка 220)
+const RADIUS = 48 * PX;                 // скругление углов
+const DEPTH = 0.12;                     // толщина плитки
+const GLYPH = 152 * PX;                 // ширина знака
+const STROKE = 0.032;                   // радиус трубки штриха (stroke 1,5 из 24 — и чуть толще, для объёма)
+const LIFT = [36, 22, 8].map(z => z * PX); // высота слоя над плиткой: верхний — выше всех
+// Покачивание после перехода: ждёт, пока вступление уйдёт, и набирается за SWAY_IN
+const SWAY_AFTER = 2.6;
+const SWAY_IN = 2.5;
 
 /** Точки SVG-пути в координатах плитки. Нужен DOM — путь меряет браузер. */
 function samplePath(d) {
@@ -49,102 +57,105 @@ function samplePath(d) {
   return points;
 }
 
-function roundedSquare(size, radius) {
-  const h = size / 2;
-  const s = new THREE.Shape();
-  s.moveTo(-h + radius, -h);
-  s.lineTo(h - radius, -h);
-  s.quadraticCurveTo(h, -h, h, -h + radius);
-  s.lineTo(h, h - radius);
-  s.quadraticCurveTo(h, h, h - radius, h);
-  s.lineTo(-h + radius, h);
-  s.quadraticCurveTo(-h, h, -h, h - radius);
-  s.lineTo(-h, -h + radius);
-  s.quadraticCurveTo(-h, -h, -h + radius, -h);
-  return s;
+/** Мягкое свечение вокруг плитки — как box-shadow «готово» у знака вступления. */
+function glowTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 256;
+  const g = canvas.getContext('2d');
+  g.filter = 'blur(22px)';
+  g.fillStyle = '#ffffff';
+  g.beginPath();
+  g.roundRect(56, 56, 144, 144, 32);
+  g.fill();
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
 }
 
-/** Знак: по группе на слой — трубка штриха и круглые концы. */
-function buildGlyph(material) {
-  const group = new THREE.Group();
-  const cap = new THREE.SphereGeometry(STROKE, 20, 14);
-  const layers = LAYER_PATHS.map(d => {
-    const layer = new THREE.Group();
-    const points = samplePath(d);
-    const closed = /z$/i.test(d);
-    const curve = new THREE.CatmullRomCurve3(closed ? points.slice(0, -1) : points, closed, 'centripetal');
-    layer.add(new THREE.Mesh(new THREE.TubeGeometry(curve, points.length * 2, STROKE, 18, closed), material));
-    if (!closed) {
-      for (const end of [points[0], points[points.length - 1]]) {
-        const ball = new THREE.Mesh(cap, material);
-        ball.position.copy(end);
-        layer.add(ball);
-      }
+/**
+ * Слой знака: трубка штриха, круглые концы у открытых путей и едва заметная
+ * заливка — как fill у слоёв во вступлении.
+ */
+function buildLayer(d, line, fill) {
+  const layer = new THREE.Group();
+  const points = samplePath(d);
+  const closed = /z$/i.test(d);
+  const curve = new THREE.CatmullRomCurve3(closed ? points.slice(0, -1) : points, closed, 'centripetal');
+  layer.add(new THREE.Mesh(new THREE.TubeGeometry(curve, points.length * 2, STROKE, 12, closed), line));
+  if (!closed) {
+    const cap = new THREE.SphereGeometry(STROKE, 12, 8);
+    for (const end of [points[0], points[points.length - 1]]) {
+      const ball = new THREE.Mesh(cap, line);
+      ball.position.copy(end);
+      layer.add(ball);
     }
-    group.add(layer);
-    return layer;
-  });
-  return { group, layers };
+  }
+  const shape = new THREE.Shape(points.map(p => new THREE.Vector2(p.x, p.y)));
+  layer.add(new THREE.Mesh(new THREE.ShapeGeometry(shape), fill));
+  return layer;
 }
-
-const easeOut = u => 1 - Math.pow(1 - Math.min(1, Math.max(0, u)), 3);
 
 export function buildLogo() {
   const group = new THREE.Group();
+  // Всё содержимое — в pose: ей задаётся покачивание, а group main.js
+  // разворачивает лицом к камере
+  const pose = new THREE.Group();
+  group.add(pose);
 
-  // ── Пластина жидкого стекла: скруглённая кромка ловит блики, сквозь
-  // толщу виден город — чуть смещённый преломлением и с радугой дисперсии ──
-  const tileGeometry = new THREE.ExtrudeGeometry(roundedSquare(TILE, 0.5), {
-    depth: DEPTH, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.1, bevelSegments: 10, curveSegments: 40,
+  // ── Плитка: тёмный графит со скруглёнными углами и тонкой фаской; лицевая
+  // сторона — на z = 0, слои знака — над ней ──
+  const tileGeometry = new THREE.ExtrudeGeometry(roundedRect(TILE - 0.04, TILE - 0.04, RADIUS - 0.02), {
+    depth: DEPTH, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 4, curveSegments: 32,
   });
-  tileGeometry.center();
-  const tile = new THREE.Mesh(tileGeometry, new THREE.MeshPhysicalMaterial({
-    color: '#ffffff',
-    metalness: 0,
-    roughness: 0.04,
-    transmission: 1,
-    thickness: 0.6,
-    ior: 1.5,
-    dispersion: 2.5,
-    attenuationColor: BRAND,
-    attenuationDistance: 3,
-    iridescence: 0.35,
-    iridescenceIOR: 1.3,
-    clearcoat: 1,
-    clearcoatRoughness: 0.02,
-    specularIntensity: 1,
-    envMapIntensity: 0.9,
+  tileGeometry.translate(0, 0, -DEPTH - 0.02);
+  // Группы ExtrudeGeometry: 0 — лицо и тыл, 1 — кромка. Лицо не освещается —
+  // ровный тёмный цвет плитки вступления (#0b0d11), без бликов и засветки
+  // лампами сцены; кромка — металл, по ней свет обрисовывает толщину
+  pose.add(new THREE.Mesh(tileGeometry, [
+    new THREE.MeshBasicMaterial({ color: '#0b0d11', toneMapped: false }),
+    new THREE.MeshPhysicalMaterial({ color: '#15171c', metalness: 0.6, roughness: 0.4, envMapIntensity: 0.6 }),
+  ]));
+
+  // Кольцо по краю лица — тонкая линия, как mv__ring-line (отступ 4 из 120)
+  const ring = roundedRect(TILE * (112 / 120), TILE * (112 / 120), TILE * (26 / 120)).getPoints(24);
+  const ringLine = new THREE.LineLoop(
+    new THREE.BufferGeometry().setFromPoints(ring.map(p => new THREE.Vector3(p.x, p.y, 0.004))),
+    new THREE.LineBasicMaterial({ color: INK.cyan, transparent: true, opacity: 0.45, toneMapped: false }),
+  );
+  pose.add(ringLine);
+
+  // Свечение «система готова» — за плиткой, аддитивно
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(TILE * 1.78, TILE * 1.78), new THREE.MeshBasicMaterial({
+    map: glowTexture(), color: new THREE.Color(INK.cyan).multiplyScalar(0.28),
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
   }));
-  group.add(tile);
+  glow.position.z = -DEPTH - 0.06;
+  pose.add(glow);
 
-  // ── Знак: белый, чуть светится, вплавлен в середину стекла — один на обе
-  // стороны: через прозрачную пластину второй знак читался бы зеркально ──
-  const glyphMaterial = new THREE.MeshPhysicalMaterial({
-    color: '#f2f3f8', metalness: 0.2, roughness: 0.2, clearcoat: 1, emissive: '#d9d4ff', emissiveIntensity: 0.25, envMapIntensity: 1,
+  // ── Знак: нижние слои — циан, верхний — почти белый, заливки едва видны ──
+  const cyan = new THREE.MeshBasicMaterial({ color: INK.cyan, toneMapped: false });
+  const white = new THREE.MeshBasicMaterial({ color: '#e9fbff', toneMapped: false });
+  const fillMaterial = opacity => new THREE.MeshBasicMaterial({ color: INK.cyan, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+  LAYER_PATHS.forEach((d, n) => {
+    const layer = buildLayer(d, n === 0 ? white : cyan, fillMaterial(n === 0 ? 0.14 : 0.07));
+    layer.position.z = LIFT[n];
+    pose.add(layer);
   });
-  const front = buildGlyph(glyphMaterial);
-  group.add(front.group);
-  const { layers } = front;
-
 
   return {
     group,
     /**
      * @param {number} t — время сцены, с (0 — reduced motion)
-     * @param {number|null} since — сколько секунд назад ушла загрузка; null — ещё идёт
+     * @param {number|null} since — сколько секунд назад ушло вступление; null — ещё идёт
+     * @param {{ x: number, y: number }} pointer — курсор, −1..1
      */
-    update(t, since) {
-      // Сборка: слои опускаются по очереди и садятся без отскока
-      layers.forEach((layer, n) => {
-        const k = n % LAYER_PATHS.length;
-        const u = t === 0 ? 1 : since === null ? 0 : easeOut((since - k * STAGGER) / DROP);
-        layer.position.y = (1 - u) * (1.4 + k * 0.35);
-        layer.scale.setScalar(0.92 + 0.08 * u);
-        layer.visible = u > 0;
-      });
-      // Плавное покачивание вместо вращения — знак всё время читается спереди
-      group.rotation.y = Math.sin(t * 0.45) * 0.55;
-      group.rotation.x = Math.sin(t * 0.31) * 0.08;
+    update(t, since, pointer) {
+      // В стыке с вступлением знак неподвижен; покачивание и отклик на курсор
+      // набираются после — без рывка
+      const u = t === 0 || since === null ? 0 : Math.min(1, Math.max(0, (since - SWAY_AFTER) / SWAY_IN));
+      const k = u * u * (3 - 2 * u);
+      pose.rotation.y = k * (Math.sin(t * 0.45) * 0.4 + pointer.x * 0.25);
+      pose.rotation.x = k * (Math.sin(t * 0.31) * 0.06 - pointer.y * 0.12);
     },
   };
 }

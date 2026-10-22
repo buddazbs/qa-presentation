@@ -9,10 +9,11 @@
 import { mountSignal } from './main.js';
 import { mountOrbit, mountVault } from '../3d/widgets.js';
 import { applyPalette, WIDGET_PALETTE } from './palette.js';
-import { createLoader } from './loader.js';
+import { createIntro } from './intro.js';
 import { adaptSlides } from './slides.js';
 import { mountMocks } from './mocks.js';
 import { createChapterTitle } from './title.js';
+import { createDepth } from './depth.js';
 
 const root = document.documentElement;
 const menuList = document.getElementById('menuList');
@@ -54,13 +55,14 @@ function loadDeckRuntime() {
   });
 }
 
-// ── Запуск: этапы отмечаются по факту, ошибка этапа останавливает запуск ──
-const boot = createLoader(document.getElementById('boot'), [
-  { id: 'fonts', label: 'Шрифты', jp: '書体' },
-  { id: 'slides', label: 'Главы презентации', jp: '章構成' },
-  { id: 'scene', label: 'Трёхмерная сцена', jp: '描画' },
-  { id: 'runtime', label: 'Анимации слайдов', jp: '演出' },
-  { id: 'widgets', label: 'Виджеты слайдов', jp: '部品' },
+// ── Запуск: идёт под вступлением; этапы отмечаются по факту, ошибка этапа
+// останавливает запуск ──
+const boot = createIntro(document.getElementById('boot'), [
+  { id: 'fonts', label: 'Шрифты' },
+  { id: 'slides', label: 'Главы презентации' },
+  { id: 'scene', label: 'Трёхмерная сцена' },
+  { id: 'runtime', label: 'Анимации слайдов' },
+  { id: 'widgets', label: 'Виджеты слайдов' },
 ], { reduce });
 
 /** Этап запуска: отметить начало, выполнить, отметить итог; упал — дальше не идём. */
@@ -87,6 +89,8 @@ const mocks = mountMocks(slides.find(s => s.classList.contains('slide--mocks'))?
 const frameChapter = document.getElementById('frameChapter');
 // Заголовок главы слева (signal/title.js)
 let chapterTitle = null;
+// Планы внутри слайда в фокусе: панели, иллюстрации и значки над листом (signal/depth.js)
+const depth = createDepth({ reduce });
 
 let scene = null;
 await stage('scene', () => {
@@ -96,6 +100,7 @@ await stage('scene', () => {
         if (i < 0) return;
         window.deck?.enter(slides[i]);
         if (slides[i].classList.contains('slide--mocks')) mocks.enter();
+        depth.enter(slides[i]);
         const tag = slides[i].closest('.card3d')?.querySelector('.hud__tag');
         if (tag) typeOn(tag, tag.textContent, 320);
       },
@@ -103,7 +108,9 @@ await stage('scene', () => {
         if (i < 0) return;
         window.deck?.leave(slides[i]);
         if (slides[i].classList.contains('slide--mocks')) mocks.leave();
+        depth.leave(slides[i]);
       },
+      onDrift: d => depth.update(d),
     });
   } catch (error) {
     // Без WebGL — слайды обычной лентой, как в 3d.html. Это не ошибка запуска
@@ -122,7 +129,12 @@ await stage('widgets', () => {
   if (core) core.textContent = 'QA';
   mountVault(document.getElementById('vaultStage'), WIDGET_PALETTE);
 });
-boot.finish().then(() => { root.classList.add('is-ready'); scene?.reveal(); });
+// Логотип сцены собирается под шторкой вступления, и знак вступления
+// перелетает точно на его место
+boot.finish({
+  target: () => scene?.logoRect(),
+  reveal: () => { root.classList.add('is-ready'); scene?.reveal(); },
+});
 
 if (scene) {
   const total = scene.count;

@@ -35,6 +35,72 @@ export const INK = {
  */
 const ROTATE_IN_VERTICAL = new Set(['ー', '〜', '…', '－']);
 
+// Плотность холстов вывесок относительно макета и фильтрация под углом:
+// вывески видны сбоку на облёте — анизотропия держит знаки резкими
+const RES = 2;
+export const ANISOTROPY = 8;
+
+/** Детерминированный шум (Park–Miller): одинаковый рисунок и раскладка при каждом запуске. */
+export const seeded = seed => () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+
+/**
+ * Подложка неоновой вывески: тёмный окрашенный металл с горизонтальными
+ * рисками шлифовки; у трубок металл подсвечен их цветом — отражение
+ * неона на подложке. Рисуется до трубок.
+ */
+function backplate(g, W, H, tint) {
+  const glow = g.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.55);
+  glow.addColorStop(0, `${tint}1f`);
+  glow.addColorStop(1, `${tint}00`);
+  g.fillStyle = glow;
+  g.fillRect(0, 0, W, H);
+  // Риски: тонкие горизонтальные линии разной яркости — детерминированно
+  const rnd = seeded(W * 31 + H);
+  for (let y = 4; y < H; y += 3) {
+    g.fillStyle = `rgba(255, 255, 255, ${(0.012 + rnd() * 0.022).toFixed(3)})`;
+    g.fillRect(0, y, W, 1);
+  }
+}
+
+/**
+ * Держатели трубки: прозрачные стойки, которыми неон крепится к подложке, —
+ * тёмные перемычки поперёк рамки через равный шаг.
+ */
+function tubeClips(g, W, H) {
+  g.fillStyle = 'rgba(20, 22, 28, 0.9)';
+  const clip = (x, y, horizontal) => (horizontal ? g.fillRect(x - 2, y - 7, 4, 14) : g.fillRect(x - 7, y - 2, 14, 4));
+  for (let x = 60; x < W - 40; x += 90) { clip(x, 16, true); clip(x, H - 16, true); }
+  for (let y = 70; y < H - 40; y += 110) { clip(16, y, false); clip(W - 16, y, false); }
+}
+
+/**
+ * Световой короб изнутри: лампы за рассеивателем светят ярче в середине и
+ * гаснут к краям, рассеиватель собран из панелей — тонкие швы поперёк.
+ * Рисуется под знаками, поверх фона.
+ */
+function lightbox(g, W, H, tint) {
+  const glow = g.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.62);
+  glow.addColorStop(0, `${tint}26`);
+  glow.addColorStop(1, `${tint}00`);
+  g.fillStyle = glow;
+  g.fillRect(0, 0, W, H);
+  // Швы между панелями рассеивателя — по длинной стороне, шаг ~2 знака
+  g.fillStyle = 'rgba(0, 0, 0, 0.35)';
+  const long = H >= W;
+  const step = 264;
+  for (let p = step; p < (long ? H : W) - 40; p += step) {
+    if (long) g.fillRect(22, p, W - 44, 1.5);
+    else g.fillRect(p, 22, 1.5, H - 44);
+  }
+  // Заклёпки крепления рамы по углам
+  g.fillStyle = 'rgba(255, 255, 255, 0.35)';
+  for (const [x, y] of [[13, 13], [W - 13, 13], [13, H - 13], [W - 13, H - 13]]) {
+    g.beginPath();
+    g.arc(x, y, 2.2, 0, Math.PI * 2);
+    g.fill();
+  }
+}
+
 /**
  * Вывеска города: вертикальная (татэгаки) или горизонтальная.
  * Стили — как у настоящих коробов: box — тёмное поле, светлые знаки и рамка
@@ -50,11 +116,16 @@ export function signTexture(text, { orient = 'v', style = 'box', accent = INK.cy
   const W = vertical ? 160 : 160 + chars.length * 132;
   const H = vertical ? 160 + chars.length * 132 : 220;
   const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
+  // Холст вдвое плотнее макета: на подлёте камеры знаки и рамки остаются
+  // резкими. Рисуем в координатах макета — масштаб берёт на себя контекст
+  canvas.width = W * RES;
+  canvas.height = H * RES;
   const g = canvas.getContext('2d');
+  g.scale(RES, RES);
   g.fillStyle = style === 'inverse' ? accent : '#06070a';
   g.fillRect(0, 0, W, H);
+  if (style === 'box' || style === 'inverse') lightbox(g, W, H, style === 'inverse' ? '#ffffff' : accent);
+  if (style === 'neon' || style === 'tube') backplate(g, W, H, accent);
   if (style === 'tube') {
     // Рамка-трубка: свечение цвета и светлая сердцевина — как у неоновых
     // коробов в переулках, где рамка горит вместе с надписью
@@ -67,6 +138,7 @@ export function signTexture(text, { orient = 'v', style = 'box', accent = INK.cy
     g.strokeStyle = 'rgba(255,255,255,0.7)';
     g.lineWidth = 2;
     g.strokeRect(16, 16, W - 32, H - 32);
+    tubeClips(g, W, H);
   } else if (style !== 'neon') {
     g.strokeStyle = style === 'inverse' ? 'rgba(255,255,255,0.85)' : accent;
     g.lineWidth = 5;
@@ -116,7 +188,7 @@ export function signTexture(text, { orient = 'v', style = 'box', accent = INK.cy
   }
   const texture = new THREE.CanvasTexture(canvas);
   if (!raw) texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 4;
+  texture.anisotropy = ANISOTROPY;
   return { texture, aspect: W / H };
 }
 
@@ -137,11 +209,13 @@ export function verticalSignTexture(text, { accent = INK.cyan, caption = '', inv
   const W = 160;
   const H = 640;
   const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
+  canvas.width = W * RES;
+  canvas.height = H * RES;
   const g = canvas.getContext('2d');
+  g.scale(RES, RES);
   g.fillStyle = inverse ? accent : '#07080a';
   g.fillRect(0, 0, W, H);
+  lightbox(g, W, H, inverse ? '#ffffff' : accent);
   // Рамка в два контура — как у световых коробов на фасадах
   g.strokeStyle = inverse ? 'rgba(255,255,255,0.85)' : accent;
   g.lineWidth = 4;
@@ -163,7 +237,7 @@ export function verticalSignTexture(text, { accent = INK.cyan, caption = '', inv
   }
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 4;
+  texture.anisotropy = ANISOTROPY;
   return texture;
 }
 

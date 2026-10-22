@@ -5,29 +5,45 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Signal — QA Platform</title>
   <meta name="description" content="Иммерсивная презентация QA Platform: колбэки и моки в одном сервисе — сигнальная магистраль и слайды по спирали вокруг неё.">
-  <!-- Стили слайдов — общие с 3d.html; signal/style.css — сцена поверх них -->
+  <!-- Стили слайдов — общие с 3d.html; signal/style.css — сцена поверх них,
+       signal/intro.css — вступление -->
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="3d/deck.css">
   <link rel="stylesheet" href="signal/style.css">
+  <link rel="stylesheet" href="signal/intro.css">
 </head>
 <body>
-  <!-- Запуск системы: этапы старта отмечаются по факту (signal/loader.js) -->
-  <div class="boot" id="boot" role="status" aria-live="polite" aria-label="Загрузка презентации">
-    <div class="boot__grid" aria-hidden="true"></div>
-    <div class="boot__marks" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-    <p class="boot__tate" lang="ja" aria-hidden="true">信号幹線<span>第一系統</span></p>
-    <div class="boot__panel">
-      <p class="boot__kicker"><span lang="ja">起動シーケンス</span><span>System boot</span></p>
-      <div class="boot__mark"></div>
-      <div class="boot__title">
-        <b>QA Platform</b>
-        <span lang="ja">品質保証基盤</span>
-      </div>
-      <ol class="boot__steps"></ol>
-      <p class="boot__status"><span class="boot__status-text">Подготовка…</span><span class="boot__count"></span></p>
-      <button type="button" class="boot__retry" hidden>Повторить загрузку</button>
+  <!-- Вступление: motion-сцена, пока презентация грузится; этапы старта
+       отмечаются по факту (signal/intro.js) -->
+  <div class="mv" id="boot" role="status" aria-live="polite" aria-label="Загрузка презентации">
+    <div class="mv__veil" aria-hidden="true"></div>
+    <div class="mv__stage" aria-hidden="true"></div>
+    <div class="mv__hud" aria-hidden="true">
+      <i></i><i></i><i></i><i></i>
+      <p class="mv__kicker"><span lang="ja">起動シーケンス</span><span>Signal · intro</span></p>
+      <span class="mv__tc">00:00</span>
+      <p class="mv__tate" lang="ja">信号幹線<span>第一系統</span></p>
+      <p class="mv__data"><span>pkt<b class="mv__pkt">0000</b></span><span>scan x<b class="mv__scanx">+0000</b></span></p>
     </div>
-    <span class="boot__seal" lang="ja" aria-hidden="true">品質</span>
+    <div class="mv__title">
+      <b class="mv__word">QA Platform</b>
+      <span class="mv__sub" lang="ja">品質保証基盤</span>
+    </div>
+    <span class="mv__seal" lang="ja" aria-hidden="true">品質</span>
+    <div class="mv__gate">
+      <p class="mv__eyebrow"><span lang="ja">信号待機</span><span>Канал на линии</span></p>
+      <p class="mv__name">QA Platform</p>
+      <p class="mv__lede">Колбэки и моки в одном сервисе</p>
+      <button type="button"><span lang="ja">起動</span>Запустить сигнал</button>
+      <p class="mv__hint">Enter, пробел или клик · со звуком</p>
+    </div>
+    <p class="mv__status">
+      <span class="mv__status-text">Подготовка…</span>
+      <span class="mv__bar" aria-hidden="true"><i></i></span>
+      <span class="mv__count"></span>
+      <button type="button" class="mv__retry" hidden>Повторить загрузку</button>
+    </p>
+    <p class="mv__skip" aria-hidden="true">Esc — пропустить</p>
   </div>
 
   <canvas class="scene" id="scene" aria-hidden="true"></canvas>

@@ -15,7 +15,7 @@
 //     спутниковая антенна на поворотной опоре, либо вертикальная вывеска.
 
 import * as THREE from '../3d/vendor/three.module.js';
-import { INK, JP_FONT, buildSign, chapterJp } from './signage.js';
+import { INK, JP_FONT, ANISOTROPY, buildSign, chapterJp, seeded } from './signage.js';
 
 /**
  * Окружение для отражений металла: студийные софтбоксы — белые и холодные
@@ -45,7 +45,7 @@ export function makeEnvironment(renderer) {
   return texture;
 }
 
-const VERTEX_UV = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+export const VERTEX_UV = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
 
 /**
  * Световая линия магистрали: короткие пакеты бегут сверху вниз по мировой
@@ -92,7 +92,7 @@ function branchFiberMaterial(uniforms) {
   });
 }
 
-function roundedRect(w, h, r) {
+export function roundedRect(w, h, r) {
   const x = w / 2;
   const y = h / 2;
   const s = new THREE.Shape();
@@ -110,22 +110,17 @@ function roundedRect(w, h, r) {
 
 /** Подпись дисплея модуля: номер, японская маркировка главы и название. */
 function labelTexture(num, name) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 320;
-  const g = canvas.getContext('2d');
-  g.fillStyle = '#fff';
-  g.font = '200 148px Inter, system-ui, -apple-system, sans-serif';
-  g.fillText(String(num).padStart(2, '0'), 26, 146);
-  g.font = `600 34px ${JP_FONT}`;
-  g.fillText(chapterJp(num), 300, 146);
-  g.fillRect(32, 170, 448, 2);
-  g.font = '500 28px ui-monospace, Menlo, monospace';
-  g.letterSpacing = '4px';
-  g.fillText(name.toUpperCase(), 32, 212);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.anisotropy = 4;
-  return texture;
+  return canvasTexture(512, 320, g => {
+    g.fillStyle = '#fff';
+    g.font = '200 148px Inter, system-ui, -apple-system, sans-serif';
+    g.fillText(String(num).padStart(2, '0'), 26, 146);
+    g.font = `600 34px ${JP_FONT}`;
+    g.fillText(chapterJp(num), 300, 146);
+    g.fillRect(32, 170, 448, 2);
+    g.font = '500 28px ui-monospace, Menlo, monospace';
+    g.letterSpacing = '4px';
+    g.fillText(name.toUpperCase(), 32, 212);
+  });
 }
 
 /** Дисплей модуля: подпись главы и столбики трафика; в фокусе ярче. */
@@ -150,7 +145,17 @@ function screenMaterial(uniforms, seed, label) {
   });
 }
 
-/** Лог платформы для мониторов: что делает сервис, строка за строкой. */
+// Лог: 32 строки по LOG_LINE px на холсте 512×1024 макета; экран показывает
+// LOG_VIEW строк
+const LOG_ROWS = 32;
+const LOG_LINE = 1024 / LOG_ROWS;
+const LOG_VIEW = 13;
+
+/**
+ * Лог платформы для мониторов: что делает сервис, строка за строкой. Время —
+ * тусклое, метод и стрелки — циан, «ok/200/online» — белые, отказы — красный
+ * печати, длительности — латунь. Шум цвета нет: один ряд лексем.
+ */
 function logTexture() {
   const lines = [
     'POST /api/callbacks/:id/send', 'prepareCallbackRequest()', '  vars ← form + declared', '  secrets → isolated',
@@ -159,41 +164,188 @@ function logTexture() {
     'GET /api/mocks?ports=8084,8085', '  stand adapter  online', '  stand processor-01  online', '  host+creds ← server',
     'PUT /callbacks/42  409', '  → reload latest', 'qa-package v14  ok', 'astGuard: require(  deny',
   ];
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 1024;
-  const g = canvas.getContext('2d');
-  g.font = '500 25px ui-monospace, Menlo, monospace';
-  g.fillStyle = '#fff';
-  for (let i = 0; i < 32; i++) {
-    const line = lines[i % lines.length];
-    g.globalAlpha = line.startsWith(' ') ? 0.55 : 1;
-    g.fillText(`${String(i * 7 % 60).padStart(2, '0')}:${String(i * 13 % 60).padStart(2, '0')} ${line}`, 18, 30 + i * 31.5);
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  return texture;
+  const tone = word => (/^(POST|GET|PUT|→|←)$/.test(word) ? INK.cyan
+    : /^(409|deny)$/.test(word) ? INK.seal
+    : /^\d+(\.\d+)?(ms|MB)$/.test(word) ? '#c4a574'
+    : /^(ok|200|OK|online)$/.test(word) ? '#ffffff' : '#c3c9d2');
+  return canvasTexture(512, 1024, g => {
+    g.font = '500 23px ui-monospace, Menlo, monospace';
+    g.textBaseline = 'middle';
+    for (let i = 0; i < LOG_ROWS; i++) {
+      const line = lines[i % lines.length];
+      const y = (i + 0.5) * LOG_LINE;
+      let x = 16;
+      g.fillStyle = '#5b626e';
+      const stamp = `${String(i * 7 % 60).padStart(2, '0')}:${String(i * 13 % 60).padStart(2, '0')} `;
+      g.fillText(stamp, x, y);
+      x += g.measureText(stamp).width;
+      // Лексемы через пробелы — каждая своим цветом; отступ вложенной строки сохраняется
+      for (const part of line.split(/( +)/)) {
+        if (!part.trim()) { x += g.measureText(part).width; continue; }
+        g.fillStyle = tone(part);
+        g.globalAlpha = line.startsWith(' ') ? 0.75 : 1;
+        g.fillText(part, x, y);
+        x += g.measureText(part).width;
+      }
+      g.globalAlpha = 1;
+    }
+  }, { color: true });
 }
 
-/** Экран монитора: строки лога ползут вверх, сверху — полоса заголовка. */
-function monitorMaterial(uniforms, seed, log) {
+/** Шапка и статус терминала — неподвижны поверх прокрутки. */
+function monitorChrome() {
+  return canvasTexture(512, 330, (g, W, H) => {
+    g.font = '600 15px ui-monospace, Menlo, monospace';
+    g.textBaseline = 'middle';
+    g.fillStyle = INK.cyan;
+    g.fillText('QAP · LOG', 16, 15);
+    g.fillStyle = '#7d8591';
+    g.fillText('tail -f callback.log', 120, 15);
+    g.fillRect(0, 29, W, 1);
+    g.fillRect(0, H - 25, W, 1);
+    g.fillStyle = INK.seal;
+    g.beginPath(); g.arc(22, H - 12, 4, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#c3c9d2';
+    g.fillText('LIVE  ch 01–13', 34, H - 12);
+    // Знак приглашения в нижней строке лога — над ним мигает курсор шейдера
+    g.fillStyle = INK.cyan;
+    g.fillText('$', 16, H * (1 - 0.112));
+  }, { color: true });
+}
+
+/**
+ * Экран монитора — терминал: новая строка лога приходит раз в ~1,2 с и
+ * сдвигает текст вверх за 0,12 с, как настоящий tail -f. Сверху шапка,
+ * снизу статус, у последней строки мигает курсор. ЭЛТ-развёртка, затемнение
+ * к краям и косой блик стекла — экран читается как стекло перед люминофором.
+ */
+function monitorMaterial(uniforms, seed, log, chrome) {
   return new THREE.ShaderMaterial({
-    uniforms: { ...uniforms, uSeed: { value: seed }, uLog: { value: log } },
+    uniforms: { ...uniforms, uSeed: { value: seed }, uLog: { value: log }, uChrome: { value: chrome } },
     vertexShader: VERTEX_UV,
     fragmentShader: /* glsl */ `
-      uniform float uTime; uniform vec3 uColor; uniform float uSeed; uniform sampler2D uLog;
+      uniform float uTime; uniform float uSeed; uniform sampler2D uLog; uniform sampler2D uChrome;
       varying vec2 vUv;
       void main() {
-        vec2 uv = vec2(vUv.x * 0.98 + 0.01, fract(vUv.y * 0.42 - uTime * 0.03 + uSeed));
-        float text = texture2D(uLog, uv).r * step(vUv.y, 0.88);
-        float header = step(0.91, vUv.y) * 0.18;
-        vec3 c = vec3(0.01, 0.012, 0.015) + vec3(0.78, 0.82, 0.88) * text * 0.7 + uColor * header;
+        // Область лога — между шапкой и статусом; строки идут ступенями
+        float y0 = 0.08, y1 = 0.91;
+        float k = (vUv.y - y0) / (y1 - y0);
+        float clock = uTime / 1.2 + uSeed * 17.0;
+        float shift = floor(clock) + smoothstep(0.0, 0.1, fract(clock));
+        float rows = ${LOG_VIEW.toFixed(1)}, total = ${LOG_ROWS.toFixed(1)};
+        vec2 uv = vec2(vUv.x, fract((k * rows - shift) / total));
+        // Нижняя строка — приглашение ввода: лог идёт над ней
+        vec3 text = texture2D(uLog, uv).rgb * step(1.0 / rows, k) * step(k, 1.0);
+        // Курсор: блок после знака приглашения, мигает раз в секунду
+        float cursor = step(0.058, vUv.x) * step(vUv.x, 0.082) * step(0.15 / rows, k) * step(k, 0.85 / rows) * step(0.5, fract(uTime));
+        vec3 ui = texture2D(uChrome, vUv).rgb;
+        vec3 c = vec3(0.012, 0.014, 0.018) + text * 0.85 + ui * 0.8 + vec3(0.18, 0.85, 1.0) * cursor * 0.6;
+        // Развёртка, виньетка и блик стекла
+        c *= 0.86 + 0.14 * sin(vUv.y * 900.0);
+        vec2 q = vUv - 0.5;
+        c *= 1.0 - 0.9 * dot(q, q);
+        c += vec3(0.05, 0.055, 0.06) * smoothstep(0.08, 0.0, abs(vUv.x + vUv.y * 0.6 - 0.95));
         gl_FragColor = vec4(c, 1.0);
       }
     `,
   });
 }
+
+/**
+ * Холст-текстура: draw(g, w, h) рисует в координатах макета, холст вдвое
+ * плотнее. Для карт рельефа и шероховатости — linear, для цвета — sRGB.
+ */
+function canvasTexture(w, h, draw, { color = false, repeat = [1, 1] } = {}) {
+  const canvas = document.createElement('canvas');
+  canvas.width = w * 2;
+  canvas.height = h * 2;
+  const g = canvas.getContext('2d');
+  g.scale(2, 2);
+  draw(g, w, h);
+  const texture = new THREE.CanvasTexture(canvas);
+  if (color) texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(...repeat);
+  texture.anisotropy = ANISOTROPY;
+  return texture;
+}
+
+/**
+ * Обшивка шахты — одна грань восьмигранника на 1 м высоты (тайл): серый
+ * анодированный металл, продольная шлифовка (риски вдоль высоты), по краям
+ * грани — сварной шов и ряд заклёпок. Рельеф: шов утоплен, заклёпки выпуклые.
+ * Возвращает { bump, rough }: одна разметка для двух карт.
+ */
+function shaftSkin(height) {
+  const W = 256, H = 512;
+  const paint = (g, bumpPass) => {
+    const rnd = seeded(7);
+    g.fillStyle = bumpPass ? '#808080' : '#9a9a9a';
+    g.fillRect(0, 0, W, H);
+    // Шлифовка: тонкие вертикальные риски разной яркости
+    for (let x = 0; x < W; x += 1) {
+      const v = (bumpPass ? 128 : 154) + (rnd() - 0.5) * (bumpPass ? 14 : 60);
+      g.fillStyle = `rgb(${v},${v},${v})`;
+      g.fillRect(x, 0, 1, H);
+    }
+    // Сварной шов по краям грани и заклёпки вдоль него
+    g.fillStyle = bumpPass ? '#3a3a3a' : '#606060';
+    g.fillRect(0, 0, 3, H);
+    g.fillRect(W - 3, 0, 3, H);
+    g.fillStyle = bumpPass ? '#e0e0e0' : '#7a7a7a';
+    for (let y = 16; y < H; y += 64) for (const x of [12, W - 12]) { g.beginPath(); g.arc(x, y, 3.2, 0, Math.PI * 2); g.fill(); }
+  };
+  const repeat = [8, height];
+  return {
+    bump: canvasTexture(W, H, g => paint(g, true), { repeat }),
+    rough: canvasTexture(W, H, g => paint(g, false), { repeat }),
+  };
+}
+
+/**
+ * Сервисная панель: внизу — жалюзи вентиляции (прорези с тенью под
+ * козырьком), вверху — трафаретная надпись 点検口 («люк для осмотра») и
+ * стрелка к винтам. Возвращает { map, bump }.
+ */
+function panelSkin() {
+  const W = 128, H = 320;
+  const paint = (g, bumpPass) => {
+    g.fillStyle = bumpPass ? '#808080' : '#ffffff';
+    g.fillRect(0, 0, W, H);
+    for (let y = H - 128; y < H - 20; y += 12) {
+      g.fillStyle = bumpPass ? '#202020' : '#3a3a3a';
+      g.fillRect(20, y, W - 40, 5);
+      g.fillStyle = bumpPass ? '#d0d0d0' : '#ffffff';
+      g.fillRect(20, y - 1.5, W - 40, 1.5);
+    }
+    if (bumpPass) return;
+    g.fillStyle = 'rgba(30, 32, 38, 0.85)';
+    g.font = `700 22px ${JP_FONT}`;
+    g.textAlign = 'center';
+    g.fillText('点検口', W / 2, 52);
+    g.font = '600 10px ui-monospace, Menlo, monospace';
+    g.fillText('SVC ↓ 4×M6', W / 2, 70);
+  };
+  return {
+    map: canvasTexture(W, H, g => paint(g, false), { color: true }),
+    bump: canvasTexture(W, H, g => paint(g, true)),
+  };
+}
+
+/**
+ * Отражатель антенны по UV лат-поверхности (u — вокруг оси, v — от центра к
+ * ободу): 12 лепестков с радиальными швами, кольцевой шов посередине,
+ * заклёпки по швам. Карта рельефа — одна на все антенны.
+ */
+const REFLECTOR_BUMP = canvasTexture(512, 128, (g, W, H) => {
+  g.fillStyle = '#808080';
+  g.fillRect(0, 0, W, H);
+  g.fillStyle = '#404040';
+  for (let k = 0; k < 12; k++) g.fillRect((k / 12) * W - 1, 0, 2, H);
+  g.fillRect(0, H * 0.55 - 1, W, 2);
+  g.fillStyle = '#c8c8c8';
+  for (let k = 0; k < 12; k++) for (let v = 0.2; v < 1; v += 0.2) { g.beginPath(); g.arc((k / 12) * W + 5, v * H, 1.6, 0, Math.PI * 2); g.fill(); }
+});
 
 /** Профиль фланца (половина сечения): от стенки шахты до обода с проточкой. */
 function flangeProfile() {
@@ -212,6 +364,9 @@ const servo = u => (u < 0.5 ? 4 * u ** 3 : 1 - (-2 * u + 2) ** 3 / 2);
  * жёсткости, наклон — на оси в вилке, азимут — на поворотном столе.
  * Ось антенны — +y группы tilt.
  */
+// Общий для всех антенн материал заградительного огня
+const BEACON = new THREE.MeshBasicMaterial({ color: INK.seal, toneMapped: false });
+
 function buildDish({ steel, chrome, dark }) {
   const R = 0.62;               // радиус отражателя
   const K = 0.42;               // y = K·r²  → фокус на 1/(4K)
@@ -251,7 +406,8 @@ function buildDish({ steel, chrome, dark }) {
     profile.push(new THREE.Vector2(r, K * r * r));
   }
   const reflector = new THREE.Mesh(new THREE.LatheGeometry(profile, 72), new THREE.MeshPhysicalMaterial({
-    color: '#d7dbe2', metalness: 0.7, roughness: 0.32, side: THREE.DoubleSide, envMapIntensity: 1.3,
+    // Крашеный тёмный металл, не зеркало: чаша собирает свет ближней лампы, светлая выгорала в белое
+    color: '#5a606a', metalness: 0.55, roughness: 0.58, bumpMap: REFLECTOR_BUMP, bumpScale: 2.2, side: THREE.DoubleSide, envMapIntensity: 0.8,
   }));
   dish.add(reflector);
   const rim = new THREE.Mesh(new THREE.TorusGeometry(R, 0.016, 8, 96), chrome);
@@ -281,6 +437,10 @@ function buildDish({ steel, chrome, dark }) {
   const lnbLed = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.005), new THREE.MeshBasicMaterial({ color: INK.cyan, toneMapped: false }));
   lnbLed.position.set(0, focus + 0.17, 0.047);
   dish.add(horn, lnb, lnbLed);
+  // Заградительный огонь на облучателе: короткая красная вспышка раз в 1,5 с
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 8), BEACON);
+  beacon.position.set(0, focus + 0.24, 0);
+  dish.add(beacon);
   // Три растяжки от обода к облучателю
   const strutGeo = new THREE.CylinderGeometry(0.009, 0.009, 1, 6);
   for (let s = 0; s < 3; s++) {
@@ -316,8 +476,11 @@ export function buildColumn({ top, bottom, branches }) {
   };
 
   // ── Материалы: металл трёх отделок и красный печати для маркировки ──
-  const shaftMaterial = new THREE.MeshPhysicalMaterial({ color: '#1a1d23', metalness: 0.85, roughness: 0.42, clearcoat: 0.3, clearcoatRoughness: 0.4, envMapIntensity: 1.1 });
-  const panelMaterial = new THREE.MeshPhysicalMaterial({ color: '#2b2f37', metalness: 0.8, roughness: 0.3, envMapIntensity: 1.2 });
+  // Обшивка шахты и панели — с рельефом: шлифовка, швы, заклёпки, жалюзи
+  const skin = shaftSkin(height);
+  const shaftMaterial = new THREE.MeshPhysicalMaterial({ color: '#1a1d23', metalness: 0.85, roughness: 0.42, roughnessMap: skin.rough, bumpMap: skin.bump, bumpScale: 1.2, clearcoat: 0.3, clearcoatRoughness: 0.4, envMapIntensity: 1.1 });
+  const panel = panelSkin();
+  const panelMaterial = new THREE.MeshPhysicalMaterial({ color: '#2b2f37', map: panel.map, bumpMap: panel.bump, bumpScale: 1.5, metalness: 0.8, roughness: 0.3, envMapIntensity: 1.2 });
   const steel = new THREE.MeshPhysicalMaterial({ color: '#3a3f48', metalness: 0.9, roughness: 0.28, envMapIntensity: 1.3 });
   const chrome = new THREE.MeshPhysicalMaterial({ color: '#c8ccd4', metalness: 1, roughness: 0.16, clearcoat: 0.4, envMapIntensity: 1.4 });
   const dark = new THREE.MeshPhysicalMaterial({ color: '#121418', metalness: 0.6, roughness: 0.5, envMapIntensity: 0.9 });
@@ -519,15 +682,52 @@ export function buildColumn({ top, bottom, branches }) {
   bottomCap.rotation.x = Math.PI;
   group.add(bottomCap);
 
-  // ── Верхний торец — эмиттер левитации: стекло логотипа ни на чём не стоит.
+  // ── Верхний торец — эмиттер левитации: знак логотипа ни на чём не стоит.
   // Шахта заканчивается тонким восьмигранным воротником, над ним — плоская
-  // площадка с четырьмя излучателями, выше висят два сегментных кольца
-  // (бирюзовое и жёлтое, крутятся навстречу), а от площадки вверх идёт
-  // едва видимый столб поля. Массы нет — только кромки и свет ──
+  // площадка: на её лице — кольца индукционной катушки и болты крепления,
+  // катушка тихо дышит светом. По диагоналям — четыре излучателя, от их
+  // линз к знаку сходятся тонкие лучи. Выше висят два сегментных кольца
+  // (бирюзовое со шкалой и жёлтое, крутятся навстречу), а от площадки вверх
+  // идёт едва видимый столб поля. Массы нет — только кромки и свет ──
   const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.86, 0.74, 0.16, 8), steel);
   collar.position.y = top + 0.02;
   const padY = top + 0.14;
-  const pad = new THREE.Mesh(new THREE.CylinderGeometry(1.06, 1.0, 0.05, 8), dark);
+  // Лицо площадки: катушка (кольца), радиальные перемычки и восемь болтов.
+  // У CylinderGeometry крышка развёрнута на uv как круг — рисуем в круге
+  const coil = canvasTexture(256, 256, (g, W) => {
+    const c = W / 2;
+    g.fillStyle = '#000';
+    g.fillRect(0, 0, W, W);
+    g.strokeStyle = '#ffffff';
+    for (let r = 26; r < 112; r += 9) {
+      g.globalAlpha = 0.35 + 0.65 * (1 - r / 112);
+      g.lineWidth = 2.2;
+      g.beginPath(); g.arc(c, c, r, 0, Math.PI * 2); g.stroke();
+    }
+    g.globalAlpha = 1;
+    g.fillStyle = '#000';
+    for (let k = 0; k < 8; k++) {
+      g.save(); g.translate(c, c); g.rotate((k / 8) * Math.PI * 2 + Math.PI / 8);
+      g.fillRect(20, -2.5, 96, 5);
+      g.restore();
+    }
+  }, { color: true });
+  const padBolts = canvasTexture(256, 256, (g, W) => {
+    const c = W / 2;
+    g.fillStyle = '#808080';
+    g.fillRect(0, 0, W, W);
+    g.fillStyle = '#e0e0e0';
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      g.beginPath(); g.arc(c + Math.cos(a) * 118, c + Math.sin(a) * 118, 4.5, 0, Math.PI * 2); g.fill();
+    }
+  });
+  const padTop = new THREE.MeshStandardMaterial({
+    color: '#121418', metalness: 0.6, roughness: 0.45, envMapIntensity: 0.9,
+    bumpMap: padBolts, bumpScale: 2, emissiveMap: coil, emissive: INK.cyan, emissiveIntensity: 0.35,
+  });
+  // Группы CylinderGeometry: 0 — бок, 1 — верхняя крышка, 2 — нижняя
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(1.06, 1.0, 0.05, 8), [dark, padTop, dark]);
   pad.position.y = padY;
   // Световая кромка площадки — восьмигранник, как сечение шахты
   const padEdge = new THREE.Mesh(new THREE.TorusGeometry(1.05, 0.012, 4, 8), ledMaterial);
@@ -540,26 +740,55 @@ export function buildColumn({ top, bottom, branches }) {
   railCap.position.y = top;
   group.add(collar, pad, padEdge, railCap);
 
-  // Излучатели: наклонные штыри по диагоналям площадки, на концах — жёлтые огни
+  // Излучатели: наклонные штыри по диагоналям площадки, на конце — головка
+  // с жёлтой линзой; от линзы к нижнему краю знака идёт тонкий луч
   const prongGeo = new THREE.BoxGeometry(0.05, 0.42, 0.05);
   prongGeo.translate(0, 0.21, 0);
   const prongs = new THREE.InstancedMesh(prongGeo, steel, 4);
+  const headGeo = new THREE.CylinderGeometry(0.05, 0.065, 0.08, 12);
+  const heads = new THREE.InstancedMesh(headGeo, dark, 4);
   const tipMaterial = new THREE.MeshBasicMaterial({ color: '#fcee0a', toneMapped: false });
-  const tips = new THREE.InstancedMesh(new THREE.BoxGeometry(0.07, 0.07, 0.07), tipMaterial, 4);
+  const lensGeo = new THREE.CircleGeometry(0.04, 16);
+  lensGeo.rotateX(-Math.PI / 2);
+  lensGeo.translate(0, 0.041, 0);
+  const tips = new THREE.InstancedMesh(lensGeo, tipMaterial, 4);
+  const rayGeo = new THREE.CylinderGeometry(0.006, 0.014, 1, 6, 1, true);
+  rayGeo.translate(0, 0.5, 0);
+  const rays = new THREE.InstancedMesh(rayGeo, new THREE.ShaderMaterial({
+    uniforms: { uTime: signal.uTime, uColor: { value: new THREE.Color('#fcee0a') } },
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    vertexShader: VERTEX_UV,
+    // Луч гаснет к знаку и мерцает бегущими сгустками — поле «качают»
+    fragmentShader: /* glsl */ `
+      uniform float uTime; uniform vec3 uColor; varying vec2 vUv;
+      void main() {
+        float fade = pow(1.0 - vUv.y, 1.6);
+        float pulse = 0.6 + 0.4 * smoothstep(0.7, 1.0, fract(vUv.y * 3.0 - uTime * 1.2));
+        gl_FragColor = vec4(uColor * fade * pulse * 0.35, 1.0);
+      }
+    `,
+  }), 4);
   const tilt = new THREE.Quaternion();
+  const toGlyph = new THREE.Vector3(0, padY + 1.75, 0);   // низ знака над площадкой
   for (let i = 0; i < 4; i++) {
     const ang = Math.PI / 4 + (i * Math.PI) / 2;
     const base = new THREE.Vector3(Math.cos(ang) * 0.9, padY + 0.02, Math.sin(ang) * 0.9);
-    // Наклон к оси: штырь «смотрит» туда, где висит стекло
+    // Наклон к оси: штырь «смотрит» туда, где висит знак
     tilt.setFromAxisAngle(new THREE.Vector3(-Math.sin(ang), 0, Math.cos(ang)), 0.35);
     m.compose(base, tilt, one);
     prongs.setMatrixAt(i, m);
-    m.compose(base.clone().add(new THREE.Vector3(0, 0.42, 0).applyQuaternion(tilt)), tilt, one);
+    const tip = base.clone().add(new THREE.Vector3(0, 0.42, 0).applyQuaternion(tilt));
+    m.compose(tip, tilt, one);
+    heads.setMatrixAt(i, m);
     tips.setMatrixAt(i, m);
+    const dir = toGlyph.clone().sub(tip);
+    m.compose(tip, new THREE.Quaternion().setFromUnitVectors(axisY, dir.clone().normalize()), new THREE.Vector3(1, dir.length(), 1));
+    rays.setMatrixAt(i, m);
   }
-  group.add(prongs, tips);
+  group.add(prongs, heads, tips, rays);
 
-  // Сегментные кольца: дуги с разрывами, как шкала прицела
+  // Сегментные кольца: дуги с разрывами, как шкала прицела; у бирюзового —
+  // шкала делений по внешней кромке, крутится вместе с ним
   const ringSegments = (radius, count, gap, material) => {
     const ring = new THREE.Group();
     const arc = (Math.PI * 2) / count - gap;
@@ -574,26 +803,45 @@ export function buildColumn({ top, bottom, branches }) {
   };
   const ringCyan = ringSegments(1.18, 6, 0.22, ledMaterial);
   ringCyan.position.y = padY + 0.5;
+  const dial = new THREE.InstancedMesh(new THREE.BoxGeometry(0.008, 0.05, 0.006), ledMaterial, 60);
+  for (let i = 0; i < 60; i++) {
+    const a = (i / 60) * Math.PI * 2;
+    const len = i % 5 === 0 ? 1.6 : 0.8;
+    m.compose(new THREE.Vector3(Math.cos(a) * (1.24 + len * 0.012), Math.sin(a) * (1.24 + len * 0.012), 0), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), a - Math.PI / 2), new THREE.Vector3(1, len, 1));
+    dial.setMatrixAt(i, m);
+  }
+  ringCyan.add(dial);
   const ringYellow = ringSegments(0.92, 3, 0.7, tipMaterial);
   ringYellow.position.y = padY + 0.78;
   group.add(ringCyan, ringYellow);
 
-  // Столб поля: открытый цилиндр, свет у площадки, к стеклу гаснет; по нему
-  // вверх бегут тонкие полосы — поле «держит» знак
+  // Столб поля: открытый цилиндр, свет у площадки, к знаку гаснет. По нему
+  // вверх бегут тонкие полосы, вокруг — вертикальные струи; кромка столба
+  // ярче середины — свет виден в толще поля, а не плоской плёнкой
   const fieldHeight = 1.5;
-  const fieldGeo = new THREE.CylinderGeometry(0.95, 1.0, fieldHeight, 32, 1, true);
+  const fieldGeo = new THREE.CylinderGeometry(0.95, 1.0, fieldHeight, 48, 1, true);
   fieldGeo.translate(0, fieldHeight / 2, 0);
   const field = new THREE.Mesh(fieldGeo, new THREE.ShaderMaterial({
     uniforms: { uTime: signal.uTime, uColor: { value: new THREE.Color(INK.cyan) } },
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    vertexShader: /* glsl */ `
+      varying vec2 vUv; varying float vRim;
+      void main() {
+        vUv = uv;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vRim = 1.0 - abs(dot(normalize(normalMatrix * normal), normalize(-mv.xyz)));
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
     fragmentShader: /* glsl */ `
       uniform float uTime; uniform vec3 uColor;
-      varying vec2 vUv;
+      varying vec2 vUv; varying float vRim;
       void main() {
         float fade = pow(1.0 - vUv.y, 2.0);
         float bands = smoothstep(0.85, 1.0, fract(vUv.y * 6.0 - uTime * 0.6));
-        gl_FragColor = vec4(uColor * fade * (0.05 + 0.22 * bands), 1.0);
+        float streams = 0.7 + 0.3 * sin(vUv.x * 6.2832 * 16.0 + vUv.y * 4.0 - uTime * 0.8);
+        float rim = 0.45 + 0.55 * pow(vRim, 1.5);
+        gl_FragColor = vec4(uColor * fade * rim * streams * (0.05 + 0.22 * bands), 1.0);
       }
     `,
   }));
@@ -683,6 +931,7 @@ export function buildColumn({ top, bottom, branches }) {
 
   // ── Мониторы: промышленный дисплей в корпусе на шарнирном кронштейне ──
   const log = logTexture();
+  const chrome2d = monitorChrome();
   const monitorGeo = new THREE.BoxGeometry(1.86, 1.26, 0.1);
   const monitorScreenGeo = new THREE.PlaneGeometry(1.7, 1.1);
   const armGeo = new THREE.CylinderGeometry(0.05, 0.06, 1.3, 12);
@@ -702,7 +951,7 @@ export function buildColumn({ top, bottom, branches }) {
     head.position.set(0, 0.1, 1.42);
     head.rotation.y = 0.5;                       // экран развёрнут к камере облёта
     const body = new THREE.Mesh(monitorGeo, housingMaterial);
-    const screen = new THREE.Mesh(monitorScreenGeo, monitorMaterial(signal, k * 0.37, log));
+    const screen = new THREE.Mesh(monitorScreenGeo, monitorMaterial(signal, k * 0.37, log, chrome2d));
     screen.position.z = 0.051;
     const status = new THREE.Mesh(statusGeo, ledMaterial);
     status.position.set(0.78, -0.58, 0.052);
@@ -777,6 +1026,8 @@ export function buildColumn({ top, bottom, branches }) {
       }
       // Антенны: раз в 7 с привод доворачивает на новую цель за 1,75 с и
       // держит её — так работает слежение, а не качание маятником
+      // Заградительные огни: вспышка 0,15 с из 1,5 с; при reduced motion (t = 0) горят ровно
+      BEACON.color.set(INK.seal).multiplyScalar(t === 0 || t % 1.5 < 0.15 ? 1 : 0.12);
       for (const d of dishes) {
         const period = 7;
         const local = t + d.seed * 3;
@@ -791,6 +1042,8 @@ export function buildColumn({ top, bottom, branches }) {
       }
       // Кольца эмиттера крутятся навстречу друг другу — медленно, как привод
       ringCyan.rotation.z = t * 0.35;
+      // Катушка дышит в такт полосам поля: пик — когда полоса уходит с площадки
+      padTop.emissiveIntensity = 0.28 + 0.14 * Math.max(0, Math.sin(t * 0.6 * Math.PI * 2));
       ringYellow.rotation.z = -t * 0.55;
       // Индикаторы модулей: «бегущий огонь» — состояние канала
       leds.forEach((led, i) => { led.visible = Math.sin(t * 2.4 - i * 1.1) > -0.4; });

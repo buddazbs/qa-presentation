@@ -1,0 +1,258 @@
+/* ══════════════ Вступление (signal/intro.js) ══════════════
+   Чертёжный стол в перспективе: сетка с координатами, дорожки сигнала, знак
+   из трёх слоёв. Неон: тонкие линии трёх цветов на почти чёрном — циан
+   (сигнал), жёлтый (ответы и данные), красный (мок). Свечение мягкое и
+   нарисовано заранее (тени и размытые копии растрируются один раз); на кадре
+   меняются только transform и opacity. Все трансформации пишет таймлайн;
+   здесь — материал и вёрстка в мировых px (масштаб мира задаёт intro.js). */
+
+.mv {
+  --unit: 1;
+  --mv-signal: var(--sg-accent);
+  --mv-data: var(--sg-nc-yellow);
+  --mv-mock: var(--sg-nc-red);
+  position: fixed; inset: 0; z-index: 60; overflow: hidden;
+  color: var(--sg-fg);
+  opacity: 0; transition: opacity 0.4s var(--sg-ease-out);
+}
+.mv.is-on { opacity: 1; }
+.mv.is-gone { opacity: 0; pointer-events: none; }
+.mv.is-loaded:not(.is-failed) { pointer-events: none; }
+.mv.is-loaded:not(.is-playing), .mv.is-failed { pointer-events: auto; }
+/* Шторка — отдельный слой: на перелёте меняется только её прозрачность */
+.mv__veil { position: absolute; inset: 0; background: #060709; will-change: opacity; }
+
+/* ── Мир ── */
+.mv__stage { position: absolute; inset: 0; perspective: 1100px; perspective-origin: 50% 50%; }
+.mv__world { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-style: preserve-3d; will-change: transform; }
+.mv__world > * { position: absolute; left: 0; top: 0; }
+
+/* Стол — статичный: сетка, перекрестья и координаты растрируются один раз */
+.mv__floor {
+  width: 3600px; height: 2600px; margin: -1300px 0 0 -1800px; opacity: 0; will-change: opacity;
+  background:
+    linear-gradient(rgba(47, 216, 255, 0.13) 1px, transparent 1px) 0 0 / 400px 400px,
+    linear-gradient(90deg, rgba(47, 216, 255, 0.13) 1px, transparent 1px) 0 0 / 400px 400px,
+    linear-gradient(rgba(154, 161, 173, 0.06) 1px, transparent 1px) 0 0 / 80px 80px,
+    linear-gradient(90deg, rgba(154, 161, 173, 0.06) 1px, transparent 1px) 0 0 / 80px 80px;
+  -webkit-mask-image: radial-gradient(closest-side, #000 45%, transparent);
+  mask-image: radial-gradient(closest-side, #000 45%, transparent);
+}
+/* Второй, нижний ярус сетки — крупнее и тусклее: параллакс под столом */
+.mv__floor--deep {
+  width: 6000px; height: 4400px; margin: -2200px 0 0 -3000px; transform: translateZ(-360px);
+  background:
+    linear-gradient(rgba(47, 216, 255, 0.04) 1px, transparent 1px) 0 0 / 240px 240px,
+    linear-gradient(90deg, rgba(47, 216, 255, 0.04) 1px, transparent 1px) 0 0 / 240px 240px;
+}
+.mv__floor > * { position: absolute; }
+.mv__cross {
+  width: 17px; height: 17px; margin: -8px 0 0 -8px; opacity: 0.55;
+  background:
+    linear-gradient(var(--mv-signal), var(--mv-signal)) 50% 50% / 1px 100% no-repeat,
+    linear-gradient(var(--mv-signal), var(--mv-signal)) 50% 50% / 100% 1px no-repeat;
+}
+.mv__coord { font: 500 13px/1 var(--mono); letter-spacing: 0.12em; color: rgba(252, 238, 10, 0.42); }
+
+/* Скан: тонкий луч и шлейф за ним — один слой, едет transform */
+.mv__scan {
+  width: 2px; height: 2600px; opacity: 0; will-change: transform, opacity;
+  background: linear-gradient(transparent, var(--mv-signal) 30%, var(--mv-signal) 70%, transparent);
+  box-shadow: 0 0 10px rgba(47, 216, 255, 0.45);
+}
+.mv__scan::before {
+  content: ''; position: absolute; top: 0; bottom: 0; right: 2px; width: 120px;
+  background: linear-gradient(90deg, transparent, rgba(47, 216, 255, 0.05));
+  -webkit-mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent);
+  mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent);
+}
+
+/* Пакеты фонового трафика: штрих с ярким концом, свечение — тень */
+.mv__packet {
+  --c: var(--mv-signal);
+  width: 140px; height: 2px; margin-top: -1px; transform-origin: 0 50%; opacity: 0; will-change: transform, opacity;
+  background: linear-gradient(90deg, transparent, var(--c));
+  box-shadow: 8px 0 10px -4px var(--c);
+}
+.mv__packet--data { --c: var(--mv-data); }
+.mv__packet--mock { --c: var(--mv-mock); }
+
+/* Маршруты: маленький SVG на каждый. Под линией — широкая полупрозрачная
+   копия: мягкое свечение без фильтров */
+.mv__route { overflow: visible; color: var(--mv-signal); }
+.mv__route--mock { color: var(--mv-mock); }
+.mv__route path { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.mv__ghost { stroke: currentColor; stroke-width: 1.5; stroke-dasharray: 0.006 0.012; opacity: 0; }
+.mv__line { stroke: currentColor; stroke-width: 2; stroke-dasharray: 0 2; }
+.mv__line-glow { stroke: currentColor; stroke-width: 10; stroke-opacity: 0.14; stroke-dasharray: 0 2; }
+.mv__comet { stroke: var(--comet, currentColor); stroke-width: 3; opacity: 0; }
+.mv__comet-glow { stroke: var(--comet, currentColor); stroke-width: 14; stroke-opacity: 0.2; opacity: 0; }
+
+/* Голова импульса: яркое ядро и ореол — тень, нарисована один раз */
+.mv__head {
+  --c: var(--mv-signal);
+  width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; opacity: 0; will-change: transform, opacity;
+  background: #eafcff; box-shadow: 0 0 0 2px var(--c), 0 0 14px 4px var(--c);
+}
+.mv__head--reply { --c: var(--mv-data); background: #fffbd6; }
+.mv__head--mock { --c: var(--mv-mock); background: #ffe3ea; }
+
+/* Узлы: рамка и ореол; вспышка — прозрачность ореола */
+.mv__node {
+  --c: var(--mv-signal);
+  width: 26px; height: 26px; margin: -13px 0 0 -13px; opacity: 0; will-change: transform, opacity;
+  border: 2px solid var(--c); background: #0b0d10;
+}
+.mv__halo { position: absolute; inset: -2px; opacity: 0; box-shadow: 0 0 18px 4px var(--c), inset 0 0 8px var(--c); }
+.mv__node--src { width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--c); border: 0; }
+.mv__node--src .mv__halo { inset: 0; border-radius: 50%; }
+.mv__node--core { --c: #eafcff; }
+.mv__node--mock { --c: var(--mv-mock); }
+
+/* Волны: кольцо полного радиуса, растёт через scale */
+.mv__wave { border: 2px solid var(--mv-signal); border-radius: 50%; opacity: 0; transform-origin: 50% 50%; will-change: transform, opacity; }
+.mv__wave--data { border-color: var(--mv-data); }
+.mv__wave--mock { border-color: var(--mv-mock); }
+
+/* Подписи: стоят на столе, повёрнуты к камере */
+.mv__pin { width: 0; height: 0; transform-style: preserve-3d; opacity: 0; }
+.mv__label {
+  position: absolute; bottom: 0; left: 0; transform: translateX(-50%);
+  display: flex; align-items: baseline; gap: 12px; white-space: nowrap;
+  padding: 8px 14px; border: 1px solid var(--sg-line-strong); background: rgba(8, 9, 12, 0.86);
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  font: 500 22px/1 var(--mono); letter-spacing: 0.04em; color: var(--sg-fg);
+}
+.mv__jp { font-family: var(--sg-jp); font-size: 0.8em; letter-spacing: 0.2em; color: var(--sg-steel); }
+.mv__pin--route .mv__label { border-color: rgba(47, 216, 255, 0.5); color: var(--mv-signal); }
+.mv__pin--mock .mv__label { border-color: rgba(255, 0, 60, 0.5); }
+.mv__pin--ok .mv__label { border-color: transparent; background: none; color: var(--mv-data); font-weight: 600; text-shadow: 0 0 8px rgba(252, 238, 10, 0.35); }
+.mv__sign { font: 600 96px/1 var(--sg-jp); letter-spacing: 0.2em; color: rgba(154, 161, 173, 0.6); white-space: nowrap; transform-origin: 0 100%; opacity: 0; }
+
+/* ── Знак: плитка и три слоя ── */
+.mv__mark { width: 0; height: 0; transform-style: preserve-3d; }
+.mv__plate {
+  position: absolute; left: -110px; top: -110px; width: 220px; height: 220px; border-radius: 48px; opacity: 0;
+  background: #0b0d11; box-shadow: 0 30px 60px rgba(0, 0, 0, 0.55);
+}
+.mv__plate-halo { position: absolute; inset: 0; border-radius: inherit; opacity: 0; box-shadow: 0 0 40px rgba(47, 216, 255, 0.28), inset 0 0 24px rgba(47, 216, 255, 0.12); }
+.mv__ring { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.mv__ring-line { fill: none; stroke: rgba(47, 216, 255, 0.45); stroke-width: 1; stroke-dasharray: 100; vector-effect: non-scaling-stroke; }
+.mv__ring-sweep { fill: none; stroke: var(--mv-signal); stroke-width: 3; stroke-dasharray: 12 88; stroke-linecap: round; opacity: 0; vector-effect: non-scaling-stroke; }
+.mv__layer { position: absolute; left: 0; top: 0; width: 220px; height: 220px; opacity: 0; transform-style: preserve-3d; will-change: transform, opacity; }
+.mv__layer svg { position: absolute; inset: 34px; width: 152px; height: 152px; overflow: visible; }
+.mv__layer path { fill: rgba(47, 216, 255, 0.07); stroke: var(--mv-signal); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.mv__layer[data-layer='0'] path { fill: rgba(47, 216, 255, 0.14); stroke: #e9fbff; }
+/* Вспышка удара: размытая копия знака, рисуется один раз, управляется прозрачностью */
+.mv__layer .mv__layer-glow { opacity: 0; filter: blur(6px); will-change: opacity; }
+.mv__layer .mv__layer-glow path { fill: none; stroke: var(--mv-signal); stroke-width: 3; }
+.mv__tag {
+  position: absolute; left: 196px; display: flex; align-items: baseline; gap: 10px; white-space: nowrap;
+  font: 500 19px/1 var(--mono); color: var(--sg-fg); transform-origin: 0 50%; opacity: 0;
+}
+.mv__tag::before { content: ''; align-self: center; width: 44px; height: 1px; background: var(--mv-signal); }
+.mv__layer[data-layer='0'] .mv__tag { top: 70px; }
+.mv__layer[data-layer='1'] .mv__tag { top: 116px; }
+.mv__layer[data-layer='1'] .mv__tag::before { background: var(--mv-mock); }
+.mv__layer[data-layer='2'] .mv__tag { top: 148px; }
+.mv__layer[data-layer='2'] .mv__tag::before { background: var(--mv-data); }
+
+/* ── Название и печать — в плоскости экрана ── */
+.mv__title {
+  position: absolute; left: 50%; top: calc(50% + var(--unit) * 140px); transform: translateX(-50%);
+  display: grid; justify-items: center; gap: calc(var(--unit) * 14px); pointer-events: none;
+}
+.mv__word { font: 600 calc(var(--unit) * 68px)/1 var(--sans); letter-spacing: -0.015em; color: var(--sg-fg); white-space: pre; }
+.mv__char { display: inline-block; opacity: 0; white-space: pre; will-change: transform, opacity; }
+.mv__sub { font: 500 calc(var(--unit) * 17px)/1 var(--sg-jp); letter-spacing: 0.42em; color: var(--sg-steel); opacity: 0; padding-left: 0.42em; }
+.mv__seal {
+  position: absolute; left: calc(50% + var(--unit) * 250px); top: calc(50% + var(--unit) * 128px);
+  padding: calc(var(--unit) * 7px) calc(var(--unit) * 5px); background: var(--sg-seal); color: #fff;
+  font: 600 calc(var(--unit) * 15px)/1.15 var(--sg-jp); writing-mode: vertical-rl; letter-spacing: 0.08em; opacity: 0;
+}
+
+/* ── Поля кадра: HUD ── */
+.mv__hud { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+.mv__hud > i { position: absolute; width: 1.25rem; height: 1.25rem; border: 0 solid rgba(47, 216, 255, 0.45); }
+.mv__hud > i:nth-of-type(1) { top: 1.5rem; left: 1.5rem; border-top-width: 1px; border-left-width: 1px; }
+.mv__hud > i:nth-of-type(2) { top: 1.5rem; right: 1.5rem; border-top-width: 1px; border-right-width: 1px; }
+.mv__hud > i:nth-of-type(3) { bottom: 1.5rem; left: 1.5rem; border-bottom-width: 1px; border-left-width: 1px; }
+.mv__hud > i:nth-of-type(4) { bottom: 1.5rem; right: 1.5rem; border-bottom-width: 1px; border-right-width: 1px; }
+.mv__kicker { position: absolute; top: 2.6rem; left: 3.2rem; margin: 0; display: flex; gap: 1rem; font: 500 0.6875rem/1 var(--mono); letter-spacing: 0.24em; text-transform: uppercase; color: var(--sg-faint); }
+.mv__kicker span:first-child { font-family: var(--sg-jp); letter-spacing: 0.3em; color: var(--sg-steel); }
+.mv__tc { position: absolute; top: 2.6rem; right: 3.2rem; font: 500 0.75rem/1 var(--mono); color: var(--mv-signal); font-variant-numeric: tabular-nums; letter-spacing: 0.1em; }
+.mv__tate { position: absolute; right: 2.6rem; top: 50%; transform: translateY(-50%); margin: 0; writing-mode: vertical-rl; font: 500 0.8125rem/1 var(--sg-jp); letter-spacing: 0.5em; color: var(--sg-dim); }
+.mv__tate span { margin-top: 1.5rem; font-size: 0.6875rem; color: var(--sg-faint); }
+/* Данные стола: сколько пакетов прошло и где луч */
+.mv__data { position: absolute; left: 3.2rem; bottom: 2.4rem; margin: 0; display: grid; gap: 0.45rem; font: 500 0.6875rem/1 var(--mono); letter-spacing: 0.14em; color: var(--sg-faint); text-transform: uppercase; }
+.mv__data b { font-weight: 500; color: var(--mv-data); font-variant-numeric: tabular-nums; margin-left: 0.6rem; }
+
+/* ── Запуск: кнопка-жест (он же открывает звук) ── */
+.mv__gate {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: grid; justify-items: center; gap: 1rem; text-align: center; width: max-content; max-width: 92vw;
+  transition: opacity 0.3s var(--sg-ease-out), transform 0.5s var(--sg-ease-out);
+}
+/* Тёмное пятно под текстом: стол и трафик не спорят с подписью */
+.mv__gate::before {
+  content: ''; position: absolute; inset: -6rem -10rem; z-index: -1; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(6, 7, 9, 0.9), rgba(6, 7, 9, 0.6) 55%, transparent);
+}
+.mv.is-playing .mv__gate { opacity: 0; transform: translate(-50%, -46%); pointer-events: none; visibility: hidden; transition: opacity 0.3s var(--sg-ease-out), transform 0.5s var(--sg-ease-out), visibility 0s 0.3s; }
+/* Появление: снизу вверх по очереди */
+.mv__gate > * { opacity: 0; transform: translateY(12px); transition: opacity 0.6s var(--sg-ease-out), transform 0.8s var(--sg-ease-out); }
+.mv.is-on .mv__gate > * { opacity: 1; transform: none; }
+.mv.is-on .mv__gate > :nth-child(2) { transition-delay: 0.08s; }
+.mv.is-on .mv__gate > :nth-child(3) { transition-delay: 0.16s; }
+.mv.is-on .mv__gate > :nth-child(4) { transition-delay: 0.26s; }
+.mv.is-on .mv__gate > :nth-child(5) { transition-delay: 0.36s; }
+.mv__eyebrow { display: flex; align-items: center; gap: 0.8rem; margin: 0; font: 500 0.6875rem/1 var(--mono); letter-spacing: 0.24em; text-transform: uppercase; color: var(--sg-dim); }
+.mv__eyebrow span:first-child { font-family: var(--sg-jp); letter-spacing: 0.3em; color: var(--mv-signal); }
+/* Индикатор линии: канал на связи — пульсирует в такт маяку источника */
+.mv__eyebrow::before { content: ''; width: 6px; height: 6px; background: var(--mv-signal); box-shadow: 0 0 6px rgba(47, 216, 255, 0.6); animation: mvPulse 2.6s ease-in-out infinite; }
+@keyframes mvPulse { 50% { opacity: 0.35; } }
+.mv__name { margin: 0; font: 600 clamp(2.4rem, 5.2vw, 4.25rem)/1 var(--sans); letter-spacing: -0.015em; color: var(--sg-fg); }
+.mv__lede { margin: 0 0 0.8rem; font: 400 1rem/1.4 var(--sans); color: var(--sg-dim); }
+.mv__gate button {
+  display: inline-flex; align-items: center; gap: 1rem; padding: 1rem 1.6rem; cursor: pointer; white-space: nowrap;
+  font: 500 0.875rem/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--sg-fg);
+  background: rgba(8, 10, 13, 0.92); border: 1px solid rgba(47, 216, 255, 0.45);
+  clip-path: polygon(0 0, calc(100% - var(--sg-cut)) 0, 100% var(--sg-cut), 100% 100%, 0 100%);
+  transition: border-color var(--sg-fast) var(--sg-ease-out), background-color var(--sg-fast) var(--sg-ease-out), transform var(--sg-fast) var(--sg-ease-out);
+}
+.mv__gate button span { font-family: var(--sg-jp); letter-spacing: 0.3em; color: var(--mv-signal); }
+.mv__gate button:focus-visible { outline: 1px solid var(--mv-signal); outline-offset: 4px; }
+.mv__gate button:active { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) {
+  .mv__gate button:hover { border-color: var(--mv-signal); background-color: rgba(47, 216, 255, 0.08); }
+}
+.mv__hint { margin: 0; font: 400 0.75rem/1.4 var(--mono); letter-spacing: 0.08em; color: var(--sg-faint); }
+
+/* ── Строка запуска: этапы по факту ── */
+.mv__status {
+  position: absolute; left: 50%; bottom: 2.4rem; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 1rem; margin: 0; white-space: nowrap;
+  font: 400 0.75rem/1 var(--mono); letter-spacing: 0.06em; color: var(--sg-dim);
+}
+.mv__bar { position: relative; width: 8rem; height: 1px; background: var(--sg-line); }
+.mv__bar i { position: absolute; inset: 0; background: var(--mv-signal); transform: scaleX(0); transform-origin: 0 50%; transition: transform 0.4s var(--sg-ease-out); }
+.mv__count { color: var(--mv-signal); font-variant-numeric: tabular-nums; }
+.mv.is-failed .mv__status-text { color: var(--sg-seal); }
+.mv.is-failed .mv__bar i { background: var(--sg-seal); }
+.mv__retry {
+  padding: 0.5rem 0.9rem; cursor: pointer; font: 500 0.75rem/1 var(--mono); color: var(--sg-fg);
+  background: transparent; border: 1px solid var(--sg-seal);
+}
+.mv__retry[hidden] { display: none; }
+.mv__retry:focus-visible { outline: 1px solid var(--mv-signal); outline-offset: 3px; }
+.mv__skip { position: absolute; right: 3.2rem; bottom: 2.4rem; margin: 0; font: 400 0.6875rem/1 var(--mono); letter-spacing: 0.08em; color: var(--sg-faint); opacity: 0; transition: opacity 0.4s var(--sg-ease-out) 1s; }
+.mv.is-playing .mv__skip { opacity: 1; }
+
+@media (max-width: 720px) {
+  .mv__tate, .mv__skip, .mv__data, .mv__kicker span:last-child { display: none; }
+  .mv__status { bottom: 1.6rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mv__eyebrow::before { animation: none; }
+  .mv__gate > * { transform: none; }
+}

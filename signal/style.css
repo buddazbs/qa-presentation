@@ -96,7 +96,7 @@ html, body { height: 100%; overflow: hidden; scroll-snap-type: none; background:
   background:
     linear-gradient(rgba(154, 161, 173, 0.035) 1px, transparent 1px) 0 0 / 100% 48px,
     linear-gradient(90deg, rgba(154, 161, 173, 0.035) 1px, transparent 1px) 0 0 / 48px 100%,
-    rgba(10, 11, 14, 0.97);
+    rgba(13, 14, 18, 0.97);
   clip-path: polygon(calc(var(--cut) - 0.4px) 0, 100% 0, 100% calc(100% - var(--cut) + 0.4px), calc(100% - var(--cut) + 0.4px) 100%, 0 100%, 0 calc(var(--cut) - 0.4px));
 }
 .card3d__scroll::-webkit-scrollbar { display: none; }
@@ -140,6 +140,32 @@ html, body { height: 100%; overflow: hidden; scroll-snap-type: none; background:
 .card3d__scroll :is(.card, .visual, .stat, .stats-note, .hero-news li, .pipe-steps li) {
   box-shadow: inset 0 0 0 1px var(--sg-line);
 }
+/* ── Планы над листом (signal/depth.js). Панель — материал чуть
+   светлее листа: светлая кромка сверху (свет ловит край), под ней две тени —
+   короткая контактная и широкая мягкая. Тени статичные, растрируются один
+   раз; движение планов — свойство translate. Чем выше план, тем глубже тень */
+.card3d__scroll :is(.card, .stat, .gate, .entry, .versus, .pkg-history, .stats-note, .cage-facts li, .hero-news li, .pipe-steps li, .final-cta, .collection, .pain-facts li) {
+  background-color: rgba(22, 24, 30, 0.94);
+  box-shadow:
+    inset 0 0 0 1px var(--sg-line),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 1px 2px rgba(0, 0, 0, 0.55),
+    0 14px 30px -12px rgba(0, 0, 0, 0.8),
+    0 30px 64px -28px rgba(0, 0, 0, 0.7);
+}
+.card3d__scroll .visual {
+  box-shadow:
+    inset 0 0 0 1px var(--sg-line),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    0 22px 44px -14px rgba(0, 0, 0, 0.85),
+    0 46px 90px -36px rgba(0, 0, 0, 0.75);
+}
+/* Подпись под числом — читаемый текст, а не фон: светлее и крупнее, чем
+   --ink-faint из styles.css (в палитре signal он почти сливается с панелью) */
+.card3d__scroll .stat span { font-size: 0.875rem; line-height: 1.35; color: var(--sg-dim); }
+/* Значки — ближний план: маленькая плотная тень, как от предмета над панелью */
+.card3d__scroll :is(.card-ico, .gate-ico, .final-badge) { filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.55)); }
 
 /* Скругления слайдов 3d.html сведены к общей геометрии: прямой угол, 2px —
    чтобы край не «резал» на субпикселях. Круглые индикаторы не затронуты */
@@ -162,135 +188,6 @@ html, body { height: 100%; overflow: hidden; scroll-snap-type: none; background:
 .card3d .slide:not(.live) .reveal { opacity: 0.32; }
 .no-webgl .deck3d { position: static; opacity: 1; pointer-events: auto; }
 .no-webgl, .no-webgl body { overflow: auto; height: auto; }
-
-/* ══════════════ Запуск системы (signal/loader.js) ══════════════ */
-.boot {
-  position: fixed; inset: 0; z-index: 60;
-  display: grid; place-items: center;
-  background: var(--sg-bg); color: var(--sg-fg);
-  transition: opacity 0.6s var(--sg-ease-out), visibility 0.6s;
-}
-.boot.is-leaving { opacity: 0; visibility: hidden; pointer-events: none; }
-/* Модульная сетка: шаг 48px, каждая четвёртая линия плотнее; к краям гаснет */
-.boot__grid {
-  position: absolute; inset: 0;
-  background:
-    linear-gradient(rgba(154, 161, 173, 0.1) 1px, transparent 1px) 50% 50% / 192px 192px,
-    linear-gradient(90deg, rgba(154, 161, 173, 0.1) 1px, transparent 1px) 50% 50% / 192px 192px,
-    linear-gradient(rgba(154, 161, 173, 0.045) 1px, transparent 1px) 50% 50% / 48px 48px,
-    linear-gradient(90deg, rgba(154, 161, 173, 0.045) 1px, transparent 1px) 50% 50% / 48px 48px;
-  mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, #000 30%, transparent 100%);
-  opacity: 0; transform: scale(1.02);
-  transition: opacity 0.9s var(--sg-ease-out), transform 0.9s var(--sg-ease-out);
-}
-.boot.is-on .boot__grid { opacity: 1; transform: none; }
-/* Метки по углам кадра — как поля технического чертежа */
-.boot__marks i { position: absolute; width: 1.25rem; height: 1.25rem; border: 0 solid var(--sg-line-strong); opacity: 0; transition: opacity 0.6s var(--sg-ease-out) 0.2s; }
-.boot.is-on .boot__marks i { opacity: 1; }
-.boot__marks i:nth-child(1) { top: 1.5rem; left: 1.5rem; border-top-width: 1px; border-left-width: 1px; }
-.boot__marks i:nth-child(2) { top: 1.5rem; right: 1.5rem; border-top-width: 1px; border-right-width: 1px; }
-.boot__marks i:nth-child(3) { bottom: 1.5rem; left: 1.5rem; border-bottom-width: 1px; border-left-width: 1px; }
-.boot__marks i:nth-child(4) { bottom: 1.5rem; right: 1.5rem; border-bottom-width: 1px; border-right-width: 1px; }
-.boot__tate {
-  position: absolute; right: 3rem; top: 50%; transform: translateY(-50%);
-  writing-mode: vertical-rl; margin: 0;
-  font: 500 0.875rem/1 var(--sg-jp); letter-spacing: 0.5em; color: var(--sg-steel);
-  opacity: 0; transition: opacity 0.6s var(--sg-ease-out) 0.35s;
-}
-.boot__tate span { margin-top: 1.5rem; font-size: 0.6875rem; color: var(--sg-faint); }
-.boot.is-on .boot__tate { opacity: 1; }
-.boot__seal {
-  position: absolute; left: 3rem; bottom: 3rem;
-  display: grid; place-items: center; width: 2.5rem; height: 2.5rem;
-  background: var(--sg-seal); color: #fff;
-  font: 700 0.75rem/1 var(--sg-jp); writing-mode: vertical-rl; letter-spacing: 0.1em;
-  opacity: 0; transition: opacity 0.4s var(--sg-ease-out) 0.5s;
-}
-.boot.is-on .boot__seal { opacity: 1; }
-
-.boot__panel { position: relative; width: min(24rem, 86vw); display: grid; justify-items: center; gap: 1.25rem; }
-.boot__kicker {
-  display: flex; gap: 0.9rem; margin: 0;
-  font: 500 0.6875rem/1 var(--mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--sg-faint);
-}
-.boot__kicker span:first-child { font-family: var(--sg-jp); letter-spacing: 0.3em; color: var(--sg-steel); }
-.boot__mark { width: 8.5rem; aspect-ratio: 1; }
-.boot__mark svg { width: 100%; height: 100%; overflow: visible; }
-.boot__track { fill: none; stroke: var(--sg-line); stroke-width: 1; }
-.boot__seg {
-  fill: none; stroke: rgba(154, 161, 173, 0.3); stroke-width: 3; stroke-linecap: butt;
-  transition: stroke var(--sg-base) var(--sg-ease-out), filter var(--sg-base) var(--sg-ease-out);
-}
-.boot__seg[data-state='busy'] { stroke: rgba(47, 216, 255, 0.45); }
-.boot__seg[data-state='done'] { stroke: var(--sg-accent); filter: drop-shadow(0 0 3px rgba(47, 216, 255, 0.6)); }
-.boot__seg[data-state='fail'] { stroke: var(--sg-seal); }
-/* Проход света по контуру — один раз, когда система готова */
-.boot__sweep { fill: none; stroke: #fff; stroke-width: 3; stroke-dasharray: 10 90; stroke-dashoffset: 10; opacity: 0; }
-.boot.is-done .boot__sweep { animation: bootSweep 0.9s var(--sg-ease-move) both; }
-@keyframes bootSweep {
-  0% { stroke-dashoffset: 10; opacity: 0; }
-  15% { opacity: 1; }
-  85% { opacity: 1; }
-  100% { stroke-dashoffset: -90; opacity: 0; }
-}
-/* Знак прорисовывается контуром, слой за слоем */
-.boot__glyph path {
-  fill: none; stroke: var(--sg-fg); stroke-width: 1.15; stroke-linecap: round; stroke-linejoin: round;
-  stroke-dasharray: 1; stroke-dashoffset: 1;
-  transition: stroke-dashoffset 0.8s var(--sg-ease-out) calc(0.25s + var(--i) * 0.14s), stroke var(--sg-base) var(--sg-ease-out);
-}
-.boot.is-on .boot__glyph path { stroke-dashoffset: 0; }
-.boot.is-done .boot__glyph path { stroke: var(--sg-accent); }
-
-.boot__title { display: grid; justify-items: center; gap: 0.4rem; }
-.boot__title b { font: 600 1.375rem/1 var(--sans); letter-spacing: -0.01em; color: var(--sg-fg); }
-.boot__title span { font: 500 0.75rem/1 var(--sg-jp); letter-spacing: 0.42em; color: var(--sg-steel); }
-
-.boot__steps { list-style: none; width: 100%; margin: 0.25rem 0 0; padding: 0; border-bottom: 1px solid var(--sg-line); }
-.boot__step {
-  display: grid; grid-template-columns: 2rem minmax(0, 1fr) 3.5rem 3.5rem; align-items: center;
-  padding: 0.5rem 0; border-top: 1px solid var(--sg-line);
-  font: 500 0.75rem/1 var(--mono); color: var(--sg-faint);
-  opacity: 0; transform: translateY(4px);
-  transition: opacity var(--sg-base) var(--sg-ease-out), transform var(--sg-base) var(--sg-ease-out), color var(--sg-base) var(--sg-ease-out);
-}
-.boot.is-on .boot__step { opacity: 1; transform: none; }
-.boot.is-on .boot__step:nth-child(2) { transition-delay: 50ms; }
-.boot.is-on .boot__step:nth-child(3) { transition-delay: 100ms; }
-.boot.is-on .boot__step:nth-child(4) { transition-delay: 150ms; }
-.boot.is-on .boot__step:nth-child(5) { transition-delay: 200ms; }
-.boot__label { font-family: var(--sans); font-size: 0.8125rem; }
-.boot__jp, .boot__state { font-family: var(--sg-jp); font-size: 0.6875rem; letter-spacing: 0.1em; text-align: right; }
-.boot__step[data-state='busy'] { color: var(--sg-fg); }
-.boot__step[data-state='busy'] .boot__state { color: var(--sg-accent); }
-.boot__step[data-state='done'] { color: var(--sg-dim); }
-.boot__step[data-state='done'] .boot__state { color: var(--sg-accent); }
-.boot__step[data-state='fail'] { color: var(--sg-fg); }
-.boot__step[data-state='fail'] .boot__state, .boot__step[data-state='fail'] .boot__num { color: var(--sg-seal); }
-
-.boot__status {
-  display: flex; justify-content: space-between; gap: 1rem; width: 100%; margin: 0;
-  font: 500 0.75rem/1.4 var(--mono); color: var(--sg-dim);
-}
-.boot__count { color: var(--sg-accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.boot.is-failed .boot__status-text { color: var(--sg-seal); }
-.boot__retry {
-  all: unset; cursor: pointer;
-  padding: 0.7rem 1.25rem;
-  font: 600 0.75rem/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--sg-fg);
-  border: 1px solid var(--sg-seal);
-  clip-path: polygon(var(--sg-cut) 0, 100% 0, 100% calc(100% - var(--sg-cut)), calc(100% - var(--sg-cut)) 100%, 0 100%, 0 var(--sg-cut));
-  transition: background-color var(--sg-fast) var(--sg-ease-out);
-}
-.boot__retry[hidden] { display: none; }
-.boot__retry:focus-visible { outline: 1px solid var(--sg-accent); outline-offset: 3px; }
-.boot__retry:active { transform: scale(0.97); }
-@media (hover: hover) and (pointer: fine) {
-  .boot__retry:hover { background: rgba(229, 50, 59, 0.14); }
-}
-@media (max-width: 720px) {
-  .boot__tate, .boot__seal { display: none; }
-}
 
 /* ── Рамка кадра: метки по углам и вертикальная японская подпись слева ── */
 .frame { position: fixed; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 0.6s var(--sg-ease-out) 0.3s; }
@@ -604,9 +501,7 @@ html, body { height: 100%; overflow: hidden; scroll-snap-type: none; background:
 
 @media (prefers-reduced-motion: reduce) {
   .rail__thumb { transition: none; }
-  .card3d.is-focus::after, .boot.is-done .boot__sweep { animation: none; }
-  .boot__glyph path { transition: none; }
-  .boot__step, .boot__grid { transform: none; }
+  .card3d.is-focus::after { animation: none; }
 }
 
 /* Меню из 13 пунктов не помещается рядом с карточкой: на низких и узких экранах — только счётчик */

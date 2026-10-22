@@ -1,7 +1,7 @@
 // Signal — сцена презентации QA Platform (бывший Callback Admin Tool).
 //
 // Композиция: по центру вертикальный ствол — сигнальная магистраль
-// (column.js), наверху — объёмный логотип платформы (logo.js), вокруг на
+// (column.js), наверху — объёмный логотип платформы — финальный знак вступления (logo.js), вокруг на
 // дистанции — ночной город (city.js). Вокруг ствола винтом висят
 // карточки: каждая — живой слайд из 3d.html в DOM-слое с той же перспективой
 // (css3d.js). От ствола к каждой карточке идёт отвод-кабель.
@@ -11,8 +11,8 @@
 // карточками камера отъезжает и облетает ствол по той же спирали.
 
 import * as THREE from '../3d/vendor/three.module.js';
-import { buildColumn, makeEnvironment } from './column.js';
-import { buildLogo } from './logo.js';
+import { buildColumn, makeEnvironment, VERTEX_UV } from './column.js';
+import { buildLogo, TILE as LOGO_TILE } from './logo.js';
 import { createCss3d } from './css3d.js';
 import { createPost } from './post.js';
 import { buildCity } from './city.js';
@@ -26,6 +26,10 @@ const isSmall = () => innerWidth <= 720;
 const SPIRAL = { radius: 4.6, spacing: 5.6, turn: 0.95, top: 0 };
 // Логотип — над первой карточкой
 const LOGO_Y = 6.2;
+// Камера вступления: откуда она смотрит на логотип; на телефоне — дальше.
+// Логотип развёрнут лицом к этой точке, чтобы знак вступления садился ровно
+const INTRO_EYE = { x: 1.2, y: LOGO_Y + 0.6, z: 9.5 };
+const INTRO_EYE_SMALL_Z = 13;
 // Ширина карточки в мире; в пикселях она по контенту, но не шире экрана
 const CARD_WORLD_W = { wide: 6.4, small: 3.4 };
 // Переход между карточками — один проход фиксированной длительности, а не
@@ -91,10 +95,11 @@ function spiralAt(p) {
  * @param {HTMLCanvasElement} canvas
  * @param {HTMLElement} view — DOM-слой для карточек
  * @param {HTMLElement[]} slides — секции .slide из 3d.html
- * @param {{ onSettle?: (i: number) => void, onLeave?: (i: number) => void }} hooks
- *   onSettle — камера доехала до карточки i (−1 — до логотипа); onLeave — уехала от неё
+ * @param {{ onSettle?: (i: number) => void, onLeave?: (i: number) => void, onDrift?: (d: { x: number, y: number }) => void }} hooks
+ *   onSettle — камера доехала до карточки i (−1 — до логотипа); onLeave — уехала от неё;
+ *   onDrift — каждый кадр: сдвиг камеры облёта от её позы у карточки в осях экрана (0 — облёта нет)
  */
-export function mountSignal(canvas, view, slides, { onSettle, onLeave } = {}) {
+export function mountSignal(canvas, view, slides, { onSettle, onLeave, onDrift } = {}) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.28;
@@ -175,53 +180,97 @@ export function mountSignal(canvas, view, slides, { onSettle, onLeave } = {}) {
   // ── Проекторы: под карточкой — излучатель, из него вверх в карточку бьёт
   // веер света. Карточка читается как голограмма, а не как висящий лист.
   // DOM-слой лежит поверх WebGL, поэтому виден только веер между излучателем
-  // и нижним краем карточки — ровно то, что нужно ──
+  // и нижним краем карточки — ровно то, что нужно.
+  //   · корпус — металлический брус с торцевыми крышками и рёбрами
+  //     радиатора снизу;
+  //   · линза — линейка светодиодов с промежутками, по ней пробегает
+  //     развёртка; у каждого диода чуть своя яркость;
+  //   · веер — свет плотнее у краёв (световые стенки), внутри вверх
+  //     поднимаются пылинки и раз в несколько секунд проходит строка развёртки ──
   const emitterGeo = new THREE.BoxGeometry(1, 0.045, 0.16);
-  const lensGeo = new THREE.BoxGeometry(1, 0.012, 0.03);
+  const capGeo = new THREE.BoxGeometry(0.03, 0.06, 0.18);
+  const finGeo = new THREE.BoxGeometry(0.01, 0.03, 0.12);
+  finGeo.translate(0, -0.035, 0);
+  const lensGeo = new THREE.PlaneGeometry(1, 0.016);
   const fanGeo = new THREE.PlaneGeometry(1, 1);
   fanGeo.translate(0, 0.5, 0);
   const emitterMaterial = new THREE.MeshPhysicalMaterial({ color: '#1c2036', metalness: 0.85, roughness: 0.3, envMapIntensity: 1.4 });
+  const capMaterial = new THREE.MeshPhysicalMaterial({ color: '#3a3f48', metalness: 0.9, roughness: 0.25, envMapIntensity: 1.3 });
   const fanUniforms = { uTime: { value: 0 } };
-  for (const [i, c] of cards.entries()) {
-    const tint = new THREE.Color(ACCENT);
+  const tint = new THREE.Color(ACCENT);   // один цвет на все проекторы
+  const FIN_STEP = 0.05;   // шаг рёбер радиатора, ед. мира
+  const MAX_FINS = 160;
+  for (const c of cards) {
     const group = new THREE.Group();
     group.quaternion.copy(c.anchor.quaternion);
     const emitter = new THREE.Mesh(emitterGeo, emitterMaterial);
-    const lens = new THREE.Mesh(lensGeo, new THREE.MeshBasicMaterial({ color: tint }));
-    lens.position.set(0, 0.028, 0.03);
+    const caps = [-1, 1].map(() => new THREE.Mesh(capGeo, capMaterial));
+    const fins = new THREE.InstancedMesh(finGeo, emitterMaterial, MAX_FINS);
+    fins.count = 0;
+    const lens = new THREE.Mesh(lensGeo, new THREE.ShaderMaterial({
+      uniforms: { ...fanUniforms, uColor: { value: tint }, uLength: { value: 1 }, uFade: { value: 1 } },
+      vertexShader: VERTEX_UV,
+      // Диоды по 2 см с промежутком; развёртка бежит вдоль линейки
+      fragmentShader: /* glsl */ `
+        uniform vec3 uColor; uniform float uTime; uniform float uLength; uniform float uFade; varying vec2 vUv;
+        float hash(float n) { return fract(sin(n) * 43758.5453); }
+        void main() {
+          float x = vUv.x * uLength / 0.02;
+          float cell = fract(x);
+          float diode = smoothstep(0.08, 0.2, cell) * smoothstep(0.92, 0.8, cell) * smoothstep(0.0, 0.3, vUv.y) * smoothstep(1.0, 0.7, vUv.y);
+          float level = 0.8 + 0.2 * hash(floor(x));
+          float scan = 1.0 + 0.6 * exp(-pow((fract(vUv.x - uTime * 0.25) - 0.5) * 18.0, 2.0));
+          gl_FragColor = vec4(mix(uColor * 0.12, uColor * 1.2, diode * level) * scan * (0.4 + 0.6 * uFade), 1.0);
+        }
+      `,
+    }));
+    lens.position.set(0, 0.0, 0.081);
     const fan = new THREE.Mesh(fanGeo, new THREE.ShaderMaterial({
       uniforms: { ...fanUniforms, uColor: { value: tint }, uFade: { value: 1 } },
       transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
-      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      // Трапеция: у излучателя уже, к карточке шире; лучи-волокна и бегущая яркость
+      vertexShader: VERTEX_UV,
+      // Трапеция: у излучателя уже, к карточке шире; лучи-волокна, световые
+      // стенки по краям, пылинки и проходящая вверх строка развёртки
       fragmentShader: /* glsl */ `
         uniform vec3 uColor; uniform float uTime; uniform float uFade; varying vec2 vUv;
+        float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         void main() {
           float hw = mix(0.36, 0.5, vUv.y);   // half — зарезервировано в GLSL ES
           float x = abs(vUv.x - 0.5);
-          float edge = smoothstep(hw, hw - 0.04, x);
+          float inside = smoothstep(hw, hw - 0.04, x);
+          float wall = smoothstep(hw - 0.06, hw - 0.01, x) * inside;
           float rays = 0.75 + 0.25 * sin(vUv.x * 220.0) * sin(vUv.x * 37.0 + uTime * 1.5);
           float rise = 0.85 + 0.15 * sin(vUv.y * 18.0 - uTime * 4.0);
-          float a = edge * rays * rise * (0.25 + 0.75 * (1.0 - vUv.y)) * 0.22 * uFade;
-          gl_FragColor = vec4(uColor * a, 1.0);
+          // Пылинки: редкие точки в сетке 60×12, плывут вверх
+          vec2 g = vec2(vUv.x * 60.0, vUv.y * 12.0 - uTime * 0.6);
+          vec2 id = floor(g);
+          float mote = step(0.93, hash(id)) * smoothstep(0.35, 0.0, length(fract(g) - 0.5));
+          // Строка развёртки: тонкая полоса раз в 3 с поднимается к карточке
+          float sweep = exp(-pow((vUv.y - fract(uTime / 3.0)) * 40.0, 2.0));
+          float a = inside * rays * rise * (0.25 + 0.75 * (1.0 - vUv.y)) * 0.2 + wall * 0.18 + mote * 0.35 * inside + sweep * 0.12 * inside;
+          gl_FragColor = vec4(uColor * a * uFade, 1.0);
         }
       `,
     }));
     fan.position.z = 0.01;
-    group.add(emitter, lens, fan);
+    group.add(emitter, ...caps, fins, lens, fan);
     scene.add(group);
     // Стеклянная плита за карточкой: тот же скошенный контур, толщина 0,16.
-    // DOM-карточка лежит поверх холста, так что видны ребро плиты на облёте
-    // и тонкий кант по краю в фокусе — карточка читается как толстое стекло
-    // Плита — тёмное закалённое стекло, без радужной плёнки
-    const slab = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshPhysicalMaterial({
-      color: '#15181d', metalness: 0, roughness: 0.1,
-      clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 1.4,
-      transparent: true, opacity: 0.55, depthWrite: false,
-    }));
+    // DOM-карточка лежит поверх холста, так что видны торец плиты на облёте
+    // и тонкий кант по краю в фокусе. Лица — тёмное закалённое стекло; торец
+    // светится циановым — свет проектора идёт по толще стекла и выходит на
+    // срезе, как у стекла с торцевой подсветкой
+    const slab = new THREE.Mesh(new THREE.BufferGeometry(), [
+      new THREE.MeshPhysicalMaterial({
+        color: '#15181d', metalness: 0, roughness: 0.1,
+        clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 1.4,
+        transparent: true, opacity: 0.55, depthWrite: false,
+      }),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(ACCENT).multiplyScalar(0.35), transparent: true, opacity: 0.55, depthWrite: false, toneMapped: false }),
+    ]);
     slab.quaternion.copy(c.anchor.quaternion);
     scene.add(slab);
-    c.projector = { group, emitter, lens, fan, slab };
+    c.projector = { group, emitter, caps, fins, lens, fan, slab };
   }
 
   /** Скошенный прямоугольник карточки в единицах мира (срезы — как clip-path). */
@@ -243,19 +292,28 @@ export function mountSignal(canvas, view, slides, { onSettle, onLeave } = {}) {
     const w = c.el.offsetWidth * scale;
     const h = c.el.offsetHeight * scale;
     const gap = 0.5;
-    c.projector.group.position.copy(c.anchor.position).add(new THREE.Vector3(0, -h / 2 - gap, 0));
-    c.projector.emitter.scale.x = w * 0.72;
-    c.projector.lens.scale.x = w * 0.68;
-    c.projector.fan.scale.set(w, gap, 1);
+    const p = c.projector;
+    const len = w * 0.72;
+    p.group.position.copy(c.anchor.position).add(new THREE.Vector3(0, -h / 2 - gap, 0));
+    p.emitter.scale.x = len;
+    p.caps.forEach((cap, k) => { cap.position.x = (k ? 1 : -1) * (len / 2 + 0.015); });
+    // Рёбра радиатора — по всей длине корпуса с постоянным шагом
+    p.fins.count = Math.min(MAX_FINS, Math.floor(len / FIN_STEP));
+    const fm = new THREE.Matrix4();
+    for (let i = 0; i < p.fins.count; i++) p.fins.setMatrixAt(i, fm.makeTranslation(-len / 2 + (i + 0.5) * (len / p.fins.count), 0, 0));
+    p.fins.instanceMatrix.needsUpdate = true;
+    p.lens.scale.x = w * 0.68;
+    p.lens.material.uniforms.uLength.value = w * 0.68;
+    p.fan.scale.set(w, gap, 1);
     // Плита чуть больше карточки — по краю остаётся светлый кант
     const rim = 0.012;
     const depth = 0.16;
     const cut = parseFloat(getComputedStyle(c.el).getPropertyValue('--cut')) * scale || 0.28;
-    c.projector.slab.geometry.dispose();
-    c.projector.slab.geometry = new THREE.ExtrudeGeometry(chamfer(w + rim * 2, h + rim * 2, cut + rim * 0.6), {
+    p.slab.geometry.dispose();
+    p.slab.geometry = new THREE.ExtrudeGeometry(chamfer(w + rim * 2, h + rim * 2, cut + rim * 0.6), {
       depth, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.01, bevelSegments: 2,
     });
-    c.projector.slab.position.copy(c.anchor.position).addScaledVector(c.normal, -depth - 0.03);
+    p.slab.position.copy(c.anchor.position).addScaledVector(c.normal, -depth - 0.03);
   }
 
   // ── Ствол и логотип ──
@@ -274,6 +332,9 @@ export function mountSignal(canvas, view, slides, { onSettle, onLeave } = {}) {
   scene.add(column.group);
   const logo = buildLogo();
   logo.group.position.y = LOGO_Y;
+  // Знак смотрит туда, откуда на него глядит камера вступления: плоский знак
+  // вступления садится на него лицом к лицу, без перспективного перекоса
+  logo.group.lookAt(INTRO_EYE.x, INTRO_EYE.y, isSmall() ? INTRO_EYE_SMALL_Z : INTRO_EYE.z);
   scene.add(logo.group);
   const city = buildCity({ top: LOGO_Y + 10, bottom: bottom - 10 });
   scene.add(city.group);
@@ -354,6 +415,13 @@ export function mountSignal(canvas, view, slides, { onSettle, onLeave } = {}) {
   const introEye = new THREE.Vector3();
   const introLook = new THREE.Vector3();
   const pointer = new THREE.Vector2();
+  // Облёт на стоянке (параллакс): сила, сглаженный курсор и рабочие векторы
+  let driftMix = 0;
+  const pointerEased = new THREE.Vector2();
+  const offset = new THREE.Vector3();
+  const UP = new THREE.Vector3(0, 1, 0);
+  const camRight = new THREE.Vector3();
+  const camUp = new THREE.Vector3();
   addEventListener('pointermove', e => pointer.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1));
 
   /** Поза камеры у дробной позиции p ≥ 0: напротив спирали, с отъездом между карточками. */
@@ -372,6 +440,20 @@ export function mountSignal(canvas, view, slides, { onSettle, onLeave } = {}) {
     const shift = focusShift * scale * fit * (1 + 1.1 * between) * (1 - overviewMix);
     outEye.addScaledVector(side, shift);
     outLook.addScaledVector(side, shift);
+  }
+
+  /**
+   * Пластина логотипа на экране: центр и сторона в CSS px; null — знак за
+   * камерой. Сюда садится знак вступления, по нему же гаснет свет вокруг знака.
+   */
+  const logoCenter = new THREE.Vector3();
+  const logoTop = new THREE.Vector3();
+  function logoRect() {
+    logo.group.getWorldPosition(logoCenter);
+    logoTop.copy(logoCenter).setY(logoCenter.y + LOGO_TILE / 2).project(camera);
+    logoCenter.project(camera);
+    if (logoCenter.z > 1) return null;
+    return { x: (logoCenter.x + 1) / 2 * innerWidth, y: (1 - logoCenter.y) / 2 * innerHeight, size: Math.abs(logoTop.y - logoCenter.y) * innerHeight };
   }
 
   const timer = new THREE.Timer();
@@ -412,7 +494,8 @@ export function mountSignal(canvas, view, slides, { onSettle, onLeave } = {}) {
       cardPose(0, eye, look);
       const m = THREE.MathUtils.smootherstep(progress, -1, 0);
       introLook.set(0, LOGO_Y - 0.6, 0);
-      introEye.set(1.2, LOGO_Y + 0.6, isSmall() ? 13 : 9.5);
+      introEye.copy(INTRO_EYE);
+      if (isSmall()) introEye.z = INTRO_EYE_SMALL_Z;
       if (!reducedMotion) introEye.x += Math.sin(t * 0.2) * 0.4;
       eye.lerpVectors(introEye, eye, m);
       look.lerpVectors(introLook, look, m);
@@ -433,7 +516,9 @@ export function mountSignal(canvas, view, slides, { onSettle, onLeave } = {}) {
     camera.lookAt(look);
     // Крен на облёте: камера закладывает вираж вокруг ствола по скорости. У
     // цели скорость нулевая — крена нет, и карточка встаёт ровно 1:1
-    if (!reducedMotion) camera.rotateZ(THREE.MathUtils.clamp(-velocity * 0.03, -0.05, 0.05) * (1 - overviewMix));
+    // Облёт ниже снова наводит камеру (lookAt) — там крен ставится повторно
+    const bank = reducedMotion ? 0 : THREE.MathUtils.clamp(-velocity * 0.03, -0.05, 0.05) * (1 - overviewMix);
+    camera.rotateZ(bank);
 
     // ── Фокус: слайд оживает, когда карточка почти встала, — анимация
     // слайда начинается в такт с посадкой, а не после паузы ──
@@ -464,7 +549,8 @@ export function mountSignal(canvas, view, slides, { onSettle, onLeave } = {}) {
       const opacity = (near + (Math.max(0.55, 1 - d * 0.1) - near) * overviewMix).toFixed(2);
       if (c.el.style.opacity !== opacity) c.el.style.opacity = opacity;
       c.projector.fan.material.uniforms.uFade.value = +opacity;
-      c.projector.slab.material.opacity = 0.55 * +opacity;
+      c.projector.lens.material.uniforms.uFade.value = +opacity;
+      for (const mat of c.projector.slab.material) mat.opacity = 0.55 * +opacity;
       const focus = i === settled;
       if (c.el.classList.contains('is-focus') !== focus) c.el.classList.toggle('is-focus', focus);
     }
@@ -487,10 +573,8 @@ export function mountSignal(canvas, view, slides, { onSettle, onLeave } = {}) {
     // Сигнал бежит по магистрали вместе с камерой; отвод карточки в фокусе горит
     column.update(reducedMotion ? 0 : t, null, { y: progress < 0 ? LOGO_Y : s.y, strength: Math.min(1, Math.abs(velocity) * 1.6), focus: settled });
     if (revealed && revealAt === null) revealAt = t;
-    logo.update(reducedMotion ? 0 : t, revealAt === null ? null : t - revealAt);
-    // Логотип чуть следит за курсором — сцена отвечает руке
-    logo.group.rotation.y += pointer.x * 0.25;
-    logo.group.rotation.x -= pointer.y * 0.12;
+    // Логотип покачивается и чуть следит за курсором — но только после стыка с вступлением
+    logo.update(reducedMotion ? 0 : t, revealAt === null ? null : t - revealAt, pointer);
 
     city.update(reducedMotion ? 0 : t);
   future.update(reducedMotion ? 0 : t);
@@ -498,11 +582,41 @@ export function mountSignal(canvas, view, slides, { onSettle, onLeave } = {}) {
 
     // Оптика: лёгкое расхождение каналов у краёв кадра на скорости облёта
     post.uniforms.uTime.value = reducedMotion ? 0 : t;
-    post.uniforms.uAberration.value += (Math.min(1, Math.abs(velocity) * 0.9) - post.uniforms.uAberration.value) * 0.15;
-    post.render(scene, camera);
+    post.uniforms.uAberration.value += (Math.min(1, Math.abs(velocity) * 0.9) - post.uniforms.uAberration.value) * (1 - Math.exp(-dt * 9.75));
     // Камера стоит у карточки — карточка в плоском слое, текст чёткий
     const still = settled !== null && settled >= 0 && progress === target && cards[settled].shownFit === cards[settled].fit;
     layer.render(camera, still ? { el: cards[settled].el, scale: 1 / cards[settled].fit, dx: focusShift } : null);
+
+    // ── Облёт на стоянке: только для 3D-города. Карточка уже в плоском слое и
+    // не двигается; камера медленно обходит точку фокуса по дуге и следует
+    // за курсором — ближние башни и вывески смещаются сильнее дальних.
+    // Набирается плавно после посадки и быстро гаснет перед следующим шагом ──
+    driftMix += ((still && !reducedMotion ? 1 : 0) - driftMix) * (1 - Math.exp(-dt * (still ? 0.9 : 8)));
+    if (driftMix > 0.001) {
+      pointerEased.lerp(pointer, 1 - Math.exp(-dt * 3));
+      const orbit = Math.sin(t * 0.21) * 0.05 + pointerEased.x * 0.045;
+      const lift = Math.sin(t * 0.17 + 1) * 0.35 + pointerEased.y * 0.45;
+      offset.copy(eye).sub(look).applyAxisAngle(UP, orbit * driftMix);
+      camera.position.copy(look).add(offset).addScaledVector(UP, lift * driftMix);
+      camera.lookAt(look);
+      // lookAt стёр крен — возвращаем, иначе он выскакивал бы скачком, когда облёт погаснет
+      camera.rotateZ(bank);
+      // Сдвиг облёта в осях экрана: по нему планы внутри слайда смещаются
+      // так же, как город за карточкой, и на уходе вместе с ним гаснут (depth.js)
+      offset.copy(camera.position).sub(eye);
+      camRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
+      camUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
+      onDrift?.({ x: offset.dot(camRight), y: offset.dot(camUp) });
+    } else {
+      onDrift?.({ x: 0, y: 0 });
+    }
+    // Заслон знака: лучи и голо-рекламы гаснут в круге вокруг логотипа
+    // (SHIELD_GLSL в city.js) — в пикселях буфера, ось y снизу вверх
+    const rect = logoRect();
+    const dpr = renderer.getPixelRatio();
+    if (rect) city.shared.uShield.value.set(rect.x * dpr, (innerHeight - rect.y) * dpr, rect.size * 0.9 * dpr);
+    else city.shared.uShield.value.z = 0;
+    post.render(scene, camera);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
@@ -529,6 +643,8 @@ export function mountSignal(canvas, view, slides, { onSettle, onLeave } = {}) {
     setOverview(on) { overview = on; },
     /** Загрузочный экран ушёл: логотип собирается на глазах у зрителя. */
     reveal() { revealed = true; },
+    /** Пластина логотипа на экране: центр и сторона в px — сюда садится знак вступления. */
+    logoRect,
     count: slides.length,
   };
 }
