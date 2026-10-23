@@ -42,9 +42,9 @@ const LAYERS = [
 ];
 // Слои падают снизу вверх: фундамент — общий код, сверху — колбэки
 const DROPS = [
-  { layer: 2, at: 5.0, z: 8, jp: '共通', ru: 'Общий код' },
-  { layer: 1, at: 5.5, z: 22, jp: '模擬', ru: 'Моки' },
-  { layer: 0, at: 6.0, z: 36, jp: '通知', ru: 'Колбэки' },
+  { layer: 2, at: 5.0, z: 26, jp: '共通', ru: 'Общий код' },
+  { layer: 1, at: 5.5, z: 40, jp: '模擬', ru: 'Моки' },
+  { layer: 0, at: 6.0, z: 54, jp: '通知', ru: 'Колбэки' },
 ];
 const T = { hold: 7.3, sweep: 7.5, out: 8.0, end: 9.4 };
 const TILE = 220;     // сторона плитки знака в мировых px
@@ -134,21 +134,41 @@ const PULSES = [
   { route: 'mock', from: 3.0, to: 3.5 },
   { route: 'mock', from: 3.5, to: 4.0, back: true, reply: true },
 ];
-// Подписи стоят на столе, повёрнутые к камере
+// Подписи-выноски: стоят на столе, повёрнуты к камере; от точки на столе к
+// табличке идёт стойка — над узлами она выходит из крыши корпуса
 const PINS = [
-  { at: [-1060, 0], show: [1.0, 3.6], jp: '試験', text: 'test run', kind: 'route' },
-  { at: [660, -200], show: [2.45, 4.1], jp: 'サービス', text: 'сервис', kind: 'node' },
-  { at: [330, -96], show: [2.05, 3.9], text: 'POST /callback', kind: 'route', type: true },
-  { at: [660, -200], lift: 64, show: [2.55, 4.1], text: '200 OK', kind: 'ok', type: true },
-  { at: [600, 220], show: [3.45, 4.2], jp: '模擬', text: 'мок', kind: 'mock' },
-  { at: [600, 220], lift: 64, show: [3.55, 4.2], text: 'mock · 201', kind: 'ok', type: true },
+  { at: [-1180, 0], lift: 104, show: [1.0, 3.6], jp: '試験', text: 'test run', kind: 'route' },
+  { at: [660, -200], lift: 118, show: [2.45, 4.1], jp: 'サービス', text: 'сервис', kind: 'node' },
+  { at: [330, -96], lift: 40, show: [2.05, 3.9], text: 'POST /callback', kind: 'route', type: true },
+  { at: [660, -200], lift: 166, show: [2.55, 4.1], text: '200 OK', kind: 'ok', type: true },
+  { at: [600, 220], lift: 118, show: [3.45, 4.2], jp: '模擬', text: 'мок', kind: 'mock' },
+  { at: [600, 220], lift: 166, show: [3.55, 4.2], text: 'mock · 201', kind: 'ok', type: true },
 ];
-// Таблички-разметка на краях стола: стоят вертикально, дают параллакс
+// Вывески по краям стола — те же короба, что в городе презентации: корпус на
+// двух стойках, неон трубкой по стеклу с обеих сторон. В заставке горят
+// вполсилы и подмигивают; на запуске гаснут и зажигаются по очереди в такт
 const SIGNS = [
-  { at: [-700, -420], text: '信号幹線', r: 8 },
-  { at: [900, 520], text: '第一系統', r: -20 },
-  { at: [1500, 240], text: '品質', r: -34 },
-  { at: [1100, -560], text: '検証', r: -6 },
+  { at: [-700, -420], r: 8, text: '信号幹線', id: 'SG-01', kind: 'v', tone: 'signal', lift: 64, ignite: 0.25 },
+  { at: [1100, -560], r: -6, text: '検証', id: 'VR-04', kind: 'h', tone: 'signal', lift: 120, ignite: 0.5 },
+  { at: [900, 520], r: -20, text: '第一系統', id: 'SG-02', kind: 'v', tone: 'data', lift: 36, ignite: 0.75 },
+  { at: [1500, 240], r: -34, text: '品質', id: 'QA-00', kind: 'seal', tone: 'mock', lift: 84, ignite: 1.0 },
+];
+// Габариты корпуса [ширина, высота, толщина] от числа знаков
+const SIGN_SIZE = { v: n => [104, n * 70 + 70, 30], h: n => [n * 84 + 96, 112, 28], seal: () => [150, 170, 40] };
+// Поджиг: трубка схватывается не с первого раза
+const IGNITE = [1, 0, 0.8, 0, 0.3, 1];
+// Корпуса микросхем на столе: [x, y, ширина, глубина, высота, маркировка, тон светодиода]
+const PARTS = [
+  [-820, -250, 150, 90, 18, 'RX-01'],
+  [-460, 230, 110, 110, 24, 'QAP·CORE', 'signal'],
+  [-560, -600, 210, 70, 14, 'BUS 0x1F'],
+  [-200, -380, 70, 70, 36, 'C12'],
+  [180, -540, 220, 84, 16, 'HOOK·IO', 'data'],
+  [320, 480, 160, 100, 20, 'MOCK·201', 'mock'],
+  [960, -60, 120, 120, 26, 'SVC-02'],
+  [1080, 300, 84, 84, 40, 'C07'],
+  [820, -470, 130, 64, 18, 'LOG'],
+  [-980, 400, 96, 64, 30, 'PWR', 'data'],
 ];
 
 // ── Заставка до запуска: стол живёт сам, пока зритель не нажал ──
@@ -223,6 +243,51 @@ function fade(node, k) {
   put(node, 'visibility', v ? 'visible' : 'hidden');
   return v > 0;
 }
+/**
+ * То же для объёма: opacity на корне сплющила бы грани в одну плоскость,
+ * поэтому корень отдаёт прозрачность граням через --k.
+ */
+function fadeBox(node, k) {
+  const v = k <= 0.001 ? 0 : Math.min(1, k);
+  put(node, '--k', v.toFixed(3));
+  put(node, 'visibility', v ? 'visible' : 'hidden');
+  return v > 0;
+}
+/** Поставить на стол: rotateX(-90°) поднимает плоскость корня вертикально. */
+const standAt = (x, y, z = 1, r = 0) => `translate3d(${px(x)}, ${px(y)}, ${z}px) rotateZ(${r}deg) rotateX(-90deg)`;
+
+/**
+ * Объём из граней CSS 3D: w — ширина, h — высота над столом, d — глубина.
+ * Корень ставится через standAt; грани — как у обычного CSS-куба вокруг
+ * центра на высоте h/2 (в плоскости корня −y — вверх). Под корпусом —
+ * контактная тень на столе.
+ */
+function box(cls, w, h, d) {
+  const root = el('div', `mv__box ${cls}`);
+  const faces = {};
+  const face = (name, fw, fh, tf) => {
+    const f = el('div', `mv__face mv__face--${name}`);
+    f.style.cssText = `width:${fw}px;height:${fh}px;left:${-fw / 2}px;top:${-h / 2 - fh / 2}px;transform:${tf}`;
+    root.append(f);
+    faces[name] = f;
+  };
+  const shade = el('i', 'mv__shade');
+  shade.style.cssText = `width:${w + 48}px;height:${d + 48}px;left:${-w / 2 - 24}px;top:${-d / 2 - 24}px;transform:rotateX(90deg)`;
+  root.append(shade);
+  face('front', w, h, `translateZ(${d / 2}px)`);
+  face('back', w, h, `rotateY(180deg) translateZ(${d / 2}px)`);
+  face('right', d, h, `rotateY(90deg) translateZ(${w / 2}px)`);
+  face('left', d, h, `rotateY(-90deg) translateZ(${w / 2}px)`);
+  face('top', w, d, `rotateX(90deg) translateZ(${h / 2}px)`);
+  return { root, faces };
+}
+
+/** Уставшая трубка: редкие провалы яркости шагом 1/12 с. */
+const hash = n => { const s = Math.sin(n * 12.9898) * 43758.5453; return s - Math.floor(s); };
+const flick = (clock, seed) => {
+  const n = hash(Math.floor(clock * 12) + seed * 131);
+  return n > 0.985 ? 0.15 : n > 0.96 ? 0.55 : 1;
+};
 
 // ══════════════ Звук: музыка и эффекты синтезом Web Audio ══════════════
 // Ля минор, 120 BPM. Гул стола → грув из тиков и баса на сигналах →
@@ -362,6 +427,11 @@ function createAudio() {
     tone('sine', NOTE(n - 12), at, { gain: 0.18, decay: 1.1, send: 0.2 });
     tone('sine', 90, at, { gain: 0.42, attack: 0.002, decay: 0.28, glide: 36, send: 0.05 }); // удар о стол
   };
+  // Поджиг неона: щелчок пускателя и короткое гудение трубки
+  const zap = at => {
+    hiss(at, 0.03, { gain: 0.08, type: 'highpass', f0: 4000, send: 0.2 });
+    tone('sawtooth', 100, at + 0.02, { gain: 0.035, attack: 0.01, decay: 0.25, send: 0.3 });
+  };
   const pad = (at, notes, dur, gain = 0.05) => notes.forEach((n, i) => {
     const o = ctx.createOscillator();
     o.type = i % 2 ? 'triangle' : 'sawtooth';
@@ -383,6 +453,7 @@ function createAudio() {
   // успевает закончиться; после — всё, что связано с готовностью
   const score = [
     [0, at => startDrone(at)],
+    ...SIGNS.map(s => [s.ignite, zap]),
     [0.8, at => run(at, 1.2, A3, A4)],
     [2.0, at => { kick(at); ping(at, A4); }],
     [2.0, at => run(at, 0.5, A4, E5)],
@@ -448,9 +519,18 @@ export function createIntro(root, steps, { reduce }) {
   /** Слой на столе: позиция — мировые координаты, чуть над плоскостью стола. */
   const onFloor = (node, x, y, z = 1) => put(node, 'transform', `translate3d(${px(x)}, ${px(y)}, ${z}px)`);
 
-  // Стол — статичный слой: сетка, перекрестья и координаты растрируются один раз
-  const floorDeep = el('div', 'mv__floor mv__floor--deep');
+  // Телефон: стол растрируется вполовину (слой 1800×1300 растянут вдвое), а
+  // нижнего яруса сетки нет. Иначе на DPR 3 два слоя стола просят больше
+  // гигабайта растра, и мобильный Safari выгружает вкладку
+  const lite = matchMedia('(pointer: coarse), (max-width: 720px)').matches;
+  root.classList.toggle('is-lite', lite);
+
+  // Стол — статичный слой: сетка, перекрестья и координаты растрируются один
+  // раз. Рисунок — во внутреннем листе: на телефоне он ужат вдвое внутри слоя
+  const floorDeep = lite ? null : el('div', 'mv__floor mv__floor--deep');
   const floor = el('div', 'mv__floor');
+  const floorArt = el('div', 'mv__floor-art');
+  floor.append(floorArt);
   GRID.cols.forEach((x, ci) => GRID.rows.forEach((y, ri) => {
     const mark = el('i', 'mv__cross');
     mark.style.left = `${1800 + x}px`;
@@ -458,9 +538,43 @@ export function createIntro(root, steps, { reduce }) {
     const coord = el('span', 'mv__coord', `${'ABCDEFGH'[ci]}${ri + 1}`);
     coord.style.left = `${1800 + x + 10}px`;
     coord.style.top = `${1300 + y + 8}px`;
-    floor.append(mark, coord);
+    floorArt.append(mark, coord);
   }));
-  world.append(floorDeep, floor);
+  // Дорожки от корпусов микросхем: выход по нормали к кромке, фаска 45°,
+  // прямой участок и переходное отверстие на конце — тоже растр один раз
+  const traces = svg('svg', { class: 'mv__traces', viewBox: '0 0 3600 2600', width: 3600, height: 2600 });
+  const traceGroup = svg('g', { transform: 'translate(1800 1300)' });
+  const rnd = seeded(31);
+  for (const [x, y, w, d] of PARTS) {
+    for (let k = 0; k < 3; k++) {
+      const [nx, ny] = [[1, 0], [-1, 0], [0, 1], [0, -1]][Math.floor(rnd() * 4)];
+      const along = (rnd() - 0.5) * 0.7;
+      const sx = x + (nx * w) / 2 + (ny ? along * w : 0);
+      const sy = y + (ny * d) / 2 + (nx ? along * d : 0);
+      const a = 30 + rnd() * 50, b = 30 + rnd() * 40, c = 60 + rnd() * 140, turn = rnd() < 0.5 ? 1 : -1;
+      const p1 = [sx + nx * a, sy + ny * a];
+      const p2 = [p1[0] + nx * b + ny * b * turn, p1[1] + ny * b + nx * b * turn];
+      const p3 = [p2[0] + nx * c, p2[1] + ny * c];
+      traceGroup.append(
+        svg('path', { d: `M${sx} ${sy} L${p1.join(' ')} L${p2.join(' ')} L${p3.join(' ')}` }),
+        svg('circle', { cx: p3[0], cy: p3[1], r: 5 }),
+      );
+    }
+  }
+  traces.append(traceGroup);
+  floorArt.append(traces);
+  world.append(...[floorDeep, floor].filter(Boolean));
+
+  // Корпуса микросхем: низкие объёмы с выводами по бокам и маркировкой
+  const parts = el('div', 'mv__parts');
+  for (const [x, y, w, d, h, label, tone] of PARTS) {
+    const b = box('mv__chip', w, h, d);
+    b.faces.top.dataset.label = label;
+    if (tone) b.root.dataset.tone = tone;
+    b.root.style.transform = standAt(x, y);
+    parts.append(b.root);
+  }
+  world.append(parts);
 
   // Луч-сканер проходит стол поперёк в заставке
   const scan = el('div', 'mv__scan');
@@ -494,19 +608,26 @@ export function createIntro(root, steps, { reduce }) {
     return [name, { ...r, box, ghost, glow, line, comet, cometGlow }];
   }));
 
-  // Узлы: рамка и ореол — ореол нарисован заранее, вспышка — его прозрачность
-  const node = (cls, x, y) => {
-    const n = el('div', `mv__node ${cls}`);
+  // Узлы — корпуса на столе: источник — башенка, ядро — низкий постамент,
+  // сервис и мок — стойки с рядами светодиодов. Маршрут входит в корпус.
+  // Вспышка — лампа на крыше и пятно света на столе, нарисованные заранее
+  const node = (tone, x, y, [w, h, d]) => {
+    const b = box('mv__node', w, h, d);
+    b.root.dataset.tone = tone;
+    const lamp = el('i', 'mv__lamp');
+    b.faces.top.append(lamp);
+    const R = Math.max(w, d) / 2 + 60;
     const halo = el('i', 'mv__halo');
-    n.append(halo);
-    world.append(n);
-    return { n, halo, x, y };
+    halo.dataset.tone = tone;
+    halo.style.width = halo.style.height = `${R * 2}px`;
+    world.append(halo, b.root);
+    return { n: b.root, halo, lamp, x, y, R };
   };
   const nodes = {
-    src: node('mv__node--src', -1180, 0),
-    c: node('mv__node--core', 0, 0),
-    svc: node('mv__node--svc', 660, -200),
-    mck: node('mv__node--mock', 600, 220),
+    src: node('signal', -1180, 0, [34, 64, 34]),
+    c: node('core', 0, 0, [60, 14, 60]),
+    svc: node('signal', 660, -200, [92, 76, 68]),
+    mck: node('mock', 600, 220, [92, 76, 68]),
   };
   // Волны: кольцо максимального радиуса, растёт через scale
   const wave = (x, y, R, tone = '') => {
@@ -529,9 +650,11 @@ export function createIntro(root, steps, { reduce }) {
     return { ...p, head };
   });
 
-  // Подписи на столе и таблички по краям
+  // Подписи-выноски: стойка от точки на столе и табличка над ней
   const pins = PINS.map(p => {
     const pin = el('div', `mv__pin mv__pin--${p.kind}`);
+    const stem = el('i', 'mv__stem');
+    stem.style.height = `${p.lift}px`;
     const label = el('div', 'mv__label');
     if (p.jp) {
       const jp = el('span', 'mv__jp', p.jp);
@@ -540,16 +663,39 @@ export function createIntro(root, steps, { reduce }) {
     }
     const textNode = el('span', 'mv__text', p.type ? '' : p.text);
     label.append(textNode);
-    pin.append(label);
+    pin.append(stem, label);
     world.append(pin);
-    return { ...p, pin, textNode, typed: null };
+    return { ...p, pin, stem, label, textNode };
   });
+  // Вывески: корпус-короб на двух стойках, плита основания с разметкой и
+  // пятно света на столе. Неон — две копии надписи: тусклая трубка и
+  // горящая с ореолом; яркость — прозрачность горящей
   const signs = SIGNS.map(s => {
-    const sign = el('div', 'mv__sign', s.text);
-    sign.lang = 'ja';
-    sign.style.transform = `translate3d(${px(s.at[0])}, ${px(s.at[1])}, 0) rotateZ(${s.r}deg) rotateX(-90deg)`;
-    world.append(sign);
-    return { ...s, sign };
+    const group = el('div', `mv__sign mv__sign--${s.kind}`);
+    group.dataset.tone = s.tone;
+    const [w, h, d] = SIGN_SIZE[s.kind]([...s.text].length);
+    const body = box('mv__sign-body', w, h, d);
+    body.root.style.transform = `translateZ(${s.lift}px) rotateX(-90deg)`;
+    const neon = ['front', 'back'].map(side => {
+      const glass = body.faces[side];
+      const lit = el('span', 'mv__tube mv__tube--lit', s.text);
+      glass.append(el('span', 'mv__tube', s.text), lit, el('span', 'mv__sign-id', s.id));
+      glass.lang = 'ja';
+      return lit;
+    });
+    const poles = [-1, 1].map(side => {
+      const pole = box('mv__pole', 8, s.lift + 6, 8);
+      pole.root.style.transform = `translateX(${side * (w / 2 - 16)}px) rotateX(-90deg)`;
+      return pole.root;
+    });
+    const base = el('i', 'mv__sign-base');
+    base.style.cssText = `width:${w + 28}px;height:${d + 44}px;left:${-w / 2 - 14}px;top:${-d / 2 - 22}px`;
+    const pool = el('i', 'mv__pool');
+    pool.style.cssText = `width:${w * 2.6}px;height:340px;left:${-w * 1.3}px;top:-170px`;
+    group.append(pool, base, ...poles, body.root);
+    group.style.transform = `translate3d(${px(s.at[0])}, ${px(s.at[1])}, 1px) rotateZ(${s.r}deg)`;
+    world.append(group);
+    return { ...s, group, neon, pool };
   });
 
   // Знак: плитка и три слоя над ней
@@ -562,6 +708,14 @@ export function createIntro(root, steps, { reduce }) {
   const ringSweep = svg('path', { d: ringPath, class: 'mv__ring-sweep', pathLength: 100 });
   ring.append(ringLine, ringSweep);
   plate.append(plateHalo, ring);
+  // Толщина плитки: под лицом — ярусы кромки, как у выдавленной плитки
+  // логотипа в сцене
+  const plateEdges = [4, 10].map(z => {
+    const e = el('i', 'mv__plate-edge');
+    e.style.transform = `translateZ(${z}px)`;
+    mark.append(e);
+    return e;
+  });
   mark.append(plate);
   const layers = DROPS.map(d => {
     const n = el('div', 'mv__layer');
@@ -678,7 +832,9 @@ export function createIntro(root, steps, { reduce }) {
     // Стол: в заставке приглушён, на запуске проявляется, на выходе уходит
     const floorIn = (0.7 + 0.3 * smooth(span(t, 0, 1.0))) * (1 - smooth(span(t, T.out, T.out + 0.6)));
     fade(floor, floorIn);
-    fade(floorDeep, floorIn * 0.8);
+    if (floorDeep) fade(floorDeep, floorIn * 0.8);
+    // К названию корпуса отступают в тень: финальный кадр — знак и подпись
+    fadeBox(parts, floorIn * (1 - 0.5 * smooth(span(t, 5.5, 7.0))));
     // Ближе к краю стола всё растворяется вместе с сеткой
     const edge = (x, y) => 1 - smooth(span(Math.hypot(x / 1.38, y), FLOOR_R * 0.55, FLOOR_R));
 
@@ -759,9 +915,11 @@ export function createIntro(root, steps, { reduce }) {
     // ── Узлы: вспыхивают при приходе сигнала, на стягивании съезжают в центр ──
     const flash = at => (t >= at ? Math.exp(-(t - at) * 6) : 0);
     const placeNode = (nd, k, glow, slide = 0) => {
-      if (!fade(nd.n, k)) return;
-      onFloor(nd.n, nd.x * (1 - slide), nd.y * (1 - slide));
-      put(nd.halo, 'opacity', glow.toFixed(3));
+      const x = nd.x * (1 - slide), y = nd.y * (1 - slide);
+      if (fade(nd.halo, glow * k)) onFloor(nd.halo, x - nd.R, y - nd.R);
+      if (!fadeBox(nd.n, k)) return;
+      put(nd.n, 'transform', standAt(x, y));
+      put(nd.lamp, 'opacity', (0.25 + 0.75 * glow).toFixed(3));
     };
     // Источник в заставке «дышит» — мягкая пульсация ореола в такт маяку
     const breathe = 0.35 + 0.35 * Math.cos((wrap(idleClock, BEACON) / BEACON) * Math.PI * 2);
@@ -782,19 +940,41 @@ export function createIntro(root, steps, { reduce }) {
       const k = span(t, show, show + 0.18) * (1 - span(t, hide - 0.25, hide));
       if (!fade(p.pin, k)) continue;
       const x = p.at[0] * (1 - pull), y = p.at[1] * (1 - pull);
-      put(p.pin, 'transform', `translate3d(${px(x)}, ${px(y)}, 0) ${face} translateY(${px(-(p.lift ?? 26) - (1 - k) * 10)})`);
+      put(p.pin, 'transform', `translate3d(${px(x)}, ${px(y)}, 0) ${face}`);
+      // Стойка вырастает из точки, табличка садится на её верх
+      const rise = outCubic(k);
+      put(p.stem, 'transform', `scaleY(${rise.toFixed(3)})`);
+      put(p.label, 'transform', `translate3d(-50%, ${px(-p.lift - (1 - rise) * 10)}, 0)`);
       if (p.type) {
         const n = Math.ceil(span(t, show, show + 0.32) * p.text.length);
         const txt = p.text.slice(0, n) + (n < p.text.length && n > 0 ? '▍' : '');
         put(p.textNode, 'textContent', txt);
       }
     }
-    for (const s of signs) {
-      fade(s.sign, Math.max(idle, smooth(span(t, 0.3, 1.4))) * (1 - smooth(span(t, 4.4, 5.2))) * 0.5);
-    }
+    // Вывески стоят на столе и уходят вместе с ним; неон — в заставке
+    // вполсилы, на запуске гаснет и зажигается по очереди, к знаку приглушается
+    signs.forEach((s, i) => {
+      if (!fadeBox(s.group, floorIn * Math.max(0.45, edge(s.at[0], s.at[1])))) return;
+      let lit;
+      // Без движения — ровный свет: мигание трубки — это вспышки
+      if (reduce) lit = 1 - 0.6 * smooth(span(t, 4.4, 5.2));
+      else if (startedAt === null && frozenAt === null) lit = 0.6 * flick(idleClock, i);
+      else if (t < s.ignite) lit = frozenAt === null ? 0.6 * flick(idleClock, i) * (1 - span(t, 0, 0.12)) : 0;
+      else {
+        const k = span(t, s.ignite, s.ignite + 0.3);
+        lit = (k < 1 ? IGNITE[Math.floor(k * IGNITE.length)] : flick(breath, i + 7)) * (1 - 0.6 * smooth(span(t, 4.4, 5.2)));
+      }
+      // Не до нуля: слой с opacity 0 Chrome не растрирует, и поджиг тогда
+      // стоил бы перерисовки ореола посреди кадра
+      lit = Math.max(0.03, lit);
+      for (const n of s.neon) put(n, 'opacity', lit.toFixed(3));
+      put(s.pool, 'opacity', Math.max(0.03, lit * floorIn * 0.6).toFixed(3));
+    });
 
     // ── Плитка знака: контур прорисовывается к 5 с; скан по кольцу — готовность ──
-    if (fade(plate, smooth(span(t, 4.5, 5.0)))) {
+    const plateK = smooth(span(t, 4.5, 5.0));
+    for (const e of plateEdges) fade(e, plateK);
+    if (fade(plate, plateK)) {
       put(ringLine, 'strokeDashoffset', (100 - 100 * smooth(span(t, 4.5, 5.1))).toFixed(2));
       const sweep = span(t, T.sweep, T.sweep + 0.8);
       put(ringSweep, 'opacity', sweep > 0 && sweep < 1 ? '1' : '0');
@@ -860,28 +1040,56 @@ export function createIntro(root, steps, { reduce }) {
 
   // ── Цикл ──
   let loopId = 0;
+  let gone = false;
   function tick(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     breath += dt;
-    if (playing) {
-      const limit = ready ? T.end : T.hold;
-      const prev = t;
-      t = Math.min(limit, t + dt);
-      if (t > prev && audio) {
-        // Пока ждём загрузку, время сцены стоит — сдвигаем базу звука
-        audio.schedule(prev, t + 0.12, audio.ctx.currentTime - t);
+    // Вступление — только обёртка запуска: что бы ни упало в кадре (звук,
+    // стиль, прямоугольник логотипа), оно не должно запереть презентацию
+    // за шторкой. Ошибка — сразу открываем сцену
+    try {
+      if (playing) {
+        const limit = ready ? T.end : T.hold;
+        const prev = t;
+        t = Math.min(limit, t + dt);
+        if (t > prev && audio) {
+          // Пока ждём загрузку, время сцены стоит — сдвигаем базу звука
+          audio.schedule(prev, t + 0.12, audio.ctx.currentTime - t);
+        }
+        // Логотип сцены собирается под шторкой, пока идёт печать и проход света
+        if (ready && !revealed && t >= 7.0) { revealed = true; handoff?.reveal(); }
+        if (t >= T.out - 0.05 && handoff) target = handoff.target() ?? target;
+        if (t >= T.end) { complete(); return; }
       }
-      // Логотип сцены собирается под шторкой, пока идёт печать и проход света
-      if (ready && !revealed && t >= 7.0) { revealed = true; handoff?.reveal(); }
-      if (t >= T.out - 0.05 && handoff) target = handoff.target() ?? target;
-      if (t >= T.end) { complete(); return; }
+      render(t);
+    } catch (error) {
+      // Первым под подозрение — звук: без него ролик идёт дальше молча.
+      // Упало без звука — кадр не рисуется, открываем сцену
+      console.error('[signal] intro frame failed', error);
+      if (audio) audio = null;
+      else if (ready) { complete(); return; }
     }
-    render(t);
     loopId = requestAnimationFrame(tick);
   }
 
+  // Сторож по настенным часам: когда запуск нажат и всё загружено, сцена
+  // откроется не позже конца ролика с запасом — даже если кадры встали
+  // (вкладка в фоне на телефоне, заглохший requestAnimationFrame)
+  let watchdog = 0;
+  function armWatchdog() {
+    if (watchdog || !playing || !ready || frozenAt !== null) return;
+    watchdog = setTimeout(complete, (T.end - t + 4) * 1000);
+  }
+
   function complete() {
+    clearTimeout(watchdog);
+    if (gone) return;
+    gone = true;
+    if (!revealed) {
+      revealed = true;
+      try { handoff?.reveal(); } catch (error) { console.error('[signal] scene reveal failed', error); }
+    }
     root.classList.add('is-gone');
     cancelAnimationFrame(loopId);
     setTimeout(() => root.remove(), 400);
@@ -906,6 +1114,7 @@ export function createIntro(root, steps, { reduce }) {
       }
     }
     if (reduce) t = T.hold - 0.6;
+    armWatchdog();
   }
   startBtn.addEventListener('click', () => start(true));
   // Пропуск: Esc — сразу к финалу (если всё загружено — к перелёту)
@@ -961,6 +1170,7 @@ export function createIntro(root, steps, { reduce }) {
       return new Promise(resolve => {
         handoff = { target: getTarget, reveal, resolve };
         ready = !failed;
+        armWatchdog();
         if (frozenAt !== null) { reveal(); resolve(); }
       });
     },
