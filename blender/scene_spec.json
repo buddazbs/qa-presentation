@@ -1,0 +1,1021 @@
+{
+  "scene": {
+    "name": "NeoTokyo_Vertical_Megastructure",
+    "units": "METRIC",
+    "meters_per_blender_unit": 1.0,
+    "up_axis": "Z",
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "meaning": "center of city and rotation axis"
+    },
+    "world_axes": {
+      "positive_x": "east",
+      "positive_y": "north",
+      "positive_z": "up",
+      "hero_camera_approach": "negative Y"
+    },
+    "bounds_m": {
+      "min_z": -144,
+      "max_z": 144,
+      "height": 288,
+      "max_radius": 124,
+      "outer_diameter": 248,
+      "inner_viewing_shaft_radius": 44
+    },
+    "radial_layout": {
+      "sector_count": 12,
+      "sector_angle_degrees": 30,
+      "depth_bands_m": [
+        {
+          "name": "inner",
+          "min_radius": 46,
+          "max_radius": 64
+        },
+        {
+          "name": "middle",
+          "min_radius": 64,
+          "max_radius": 94
+        },
+        {
+          "name": "outer",
+          "min_radius": 94,
+          "max_radius": 124
+        }
+      ]
+    },
+    "vertical_modules": {
+      "count": 6,
+      "height_m": 48,
+      "boundaries_z": [
+        -144,
+        -96,
+        -48,
+        0,
+        48,
+        96,
+        144
+      ],
+      "seam_check_band_m": 2,
+      "seam_rule": "logical partitions only; continuous geometry must not terminate at boundaries"
+    },
+    "design_status": "initial technical baseline; dimensions are project defaults, not measurements inferred from source photos"
+  },
+  "modules": [
+    {
+      "id": "MOD-Z00",
+      "z_min": -144,
+      "z_max": -96,
+      "zone": "lower industrial",
+      "notes": "supports, utility corridors, tanks, ducts, service platforms; no flat ground cap"
+    },
+    {
+      "id": "MOD-Z01",
+      "z_min": -96,
+      "z_max": -48,
+      "zone": "lower transition",
+      "notes": "industrial structures transition into denser blocks"
+    },
+    {
+      "id": "MOD-Z02",
+      "z_min": -48,
+      "z_max": 0,
+      "zone": "middle lower",
+      "notes": "transit decks, bridges, dense commercial blocks"
+    },
+    {
+      "id": "MOD-Z03",
+      "z_min": 0,
+      "z_max": 48,
+      "zone": "middle upper",
+      "notes": "primary billboards, skybridges, major tower facades"
+    },
+    {
+      "id": "MOD-Z04",
+      "z_min": 48,
+      "z_max": 96,
+      "zone": "upper transition",
+      "notes": "tall tower bodies, antenna supports, elevated links"
+    },
+    {
+      "id": "MOD-Z05",
+      "z_min": 96,
+      "z_max": 144,
+      "zone": "upper skyline",
+      "notes": "spires, antennae, rooftop machinery and skyline silhouettes"
+    }
+  ],
+  "objects": [
+    {
+      "id": "TWR-00",
+      "name": "Slide spire (presentation tower)",
+      "type": "tower",
+      "dimensions_m": {
+        "x": 5.2,
+        "y": 5.2,
+        "z": 288
+      },
+      "shape": "octagonal core of radius 1.6 m inside a four-leg braced lattice of radius 2.6 m, Z=-144..+114; collar rings halfway between slides; stepped crown +114..+131 with two decks, equipment pods, dishes and three lattice masts to +166, needle to +128 below the logo point +136",
+      "details": [
+        "13 slim cantilever mounts on a helix",
+        "dark collar ring with a junction box, monitor and landing between every two slides",
+        "X-braced lattice bays of 6 m",
+        "two recessed cyan seams on the core",
+        "conduits with clamps on two lattice legs, red leg lights every third collar"
+      ],
+      "materials": [
+        "M_DarkMetal",
+        "M_WornSteel",
+        "M_CyanEmission",
+        "M_MagentaEmission",
+        "M_RedEmission"
+      ],
+      "placement": "city axis; the only structure inside the camera shaft besides designated bridges",
+      "refs": [
+        "R01",
+        "R03",
+        "R06"
+      ],
+      "optimization": "single silhouette mesh; mounts exported as empties MOUNT-01..13 for the browser"
+    },
+    {
+      "id": "TWR-01",
+      "name": "Primary spine tower",
+      "type": "tower",
+      "dimensions_m": {
+        "x": 18,
+        "y": 22,
+        "z": 252
+      },
+      "shape": "asymmetric stepped shaft with three setbacks, exposed frame on one side, narrow antenna crown",
+      "details": [
+        "cyan vertical display on one face",
+        "mixed warm windows",
+        "roof service packs"
+      ],
+      "materials": [
+        "M_DarkMetal",
+        "M_WornSteel",
+        "M_TintedGlass",
+        "M_CyanEmission",
+        "M_AmberEmission"
+      ],
+      "placement": "outer or middle band; exact sector coordinate is a blockout decision",
+      "refs": [
+        "R01",
+        "R05A",
+        "R06",
+        "R07"
+      ],
+      "optimization": "separate silhouette mesh, instanced facade grid, LOD for window details"
+    },
+    {
+      "id": "TWR-02",
+      "name": "Needle tower",
+      "type": "tower",
+      "dimensions_m": {
+        "x": 10,
+        "y": 12,
+        "z": 226
+      },
+      "shape": "narrow tapered upper 30 percent, two service rings, antenna mast",
+      "details": [
+        "sparse vertical emissions",
+        "roof beacons"
+      ],
+      "materials": [
+        "M_DarkMetal",
+        "M_WornSteel",
+        "M_CyanEmission",
+        "M_RedEmission"
+      ],
+      "placement": "different sector from TWR-01 to preserve silhouette variety",
+      "refs": [
+        "R01",
+        "R05A",
+        "R07",
+        "R08"
+      ],
+      "optimization": "reuse ring and antenna modules"
+    },
+    {
+      "id": "TWR-03",
+      "name": "Stepped slab tower",
+      "type": "tower",
+      "dimensions_m": {
+        "x": 26,
+        "y": 20,
+        "z": 184
+      },
+      "shape": "offset blocks, cantilevered decks and an exposed side truss",
+      "details": [
+        "large billboard bay",
+        "recessed facade panels"
+      ],
+      "materials": [
+        "M_DarkMetal",
+        "M_Concrete",
+        "M_CoatedPanel",
+        "M_MagentaEmission"
+      ],
+      "placement": "middle band; must have detailed rear and side faces",
+      "refs": [
+        "R01",
+        "R05A",
+        "R08"
+      ],
+      "optimization": "bake panel variation into atlases"
+    },
+    {
+      "id": "TWR-04",
+      "name": "Ring crown tower",
+      "type": "tower",
+      "dimensions_m": {
+        "x": 16,
+        "y": 16,
+        "z": 168
+      },
+      "shape": "cylindrical core with two exterior ring platforms",
+      "details": [
+        "service ladders",
+        "antenna base",
+        "maintenance walkways"
+      ],
+      "materials": [
+        "M_DarkMetal",
+        "M_WornSteel",
+        "M_CyanEmission"
+      ],
+      "placement": "alternate between inner and outer bands",
+      "refs": [
+        "R01",
+        "R05A",
+        "R08"
+      ],
+      "optimization": "low-sided ring geometry for distant LOD"
+    },
+    {
+      "id": "BLK-01",
+      "name": "Mid-rise urban block",
+      "type": "building",
+      "dimensions_m": {
+        "x": 18,
+        "y": 16,
+        "z": 62
+      },
+      "shape": "reusable rectilinear volume with balconies, window bands and service bays",
+      "details": [
+        "asymmetric window occupancy",
+        "occasional roof unit"
+      ],
+      "materials": [
+        "M_DarkMetal",
+        "M_TintedGlass",
+        "M_CoatedPanel",
+        "M_AmberEmission"
+      ],
+      "placement": "fill gaps between towers without creating a continuous wall",
+      "refs": [
+        "R05A",
+        "R07",
+        "R08"
+      ],
+      "optimization": "linked instances of facade modules"
+    },
+    {
+      "id": "BLK-02",
+      "name": "Dense commercial block",
+      "type": "building",
+      "dimensions_m": {
+        "x": 24,
+        "y": 20,
+        "z": 82
+      },
+      "shape": "layered signage, overhangs and narrow vertical service shafts",
+      "details": [
+        "side and rear signs",
+        "small projecting platforms"
+      ],
+      "materials": [
+        "M_DarkMetal",
+        "M_TintedGlass",
+        "M_MagentaEmission",
+        "M_CyanEmission"
+      ],
+      "placement": "middle band",
+      "refs": [
+        "R01",
+        "R05A",
+        "R08"
+      ],
+      "optimization": "limit unique materials per facade"
+    },
+    {
+      "id": "UTL-01",
+      "name": "Industrial utility block",
+      "type": "utility",
+      "dimensions_m": {
+        "x": 22,
+        "y": 18,
+        "z": 30
+      },
+      "shape": "dense low-rise service building with tanks and vents",
+      "details": [
+        "duct clusters",
+        "access doors",
+        "raised maintenance platform"
+      ],
+      "materials": [
+        "M_WornSteel",
+        "M_Concrete",
+        "M_TechPolymer",
+        "M_AmberEmission"
+      ],
+      "placement": "lower zone and selected rooftops",
+      "refs": [
+        "R05B",
+        "R06",
+        "R08"
+      ],
+      "optimization": "combine small fixed props into a few meshes"
+    },
+    {
+      "id": "BRG-01",
+      "name": "Enclosed skybridge",
+      "type": "bridge",
+      "dimensions_m": {
+        "x": 32,
+        "y": 5,
+        "z": 4
+      },
+      "shape": "enclosed walkway with structural frame and maintenance mounts",
+      "details": [
+        "connectors at both ends",
+        "under-deck cable tray"
+      ],
+      "materials": [
+        "M_DarkMetal",
+        "M_TintedGlass",
+        "M_CyanEmission"
+      ],
+      "placement": "connect real facade support points; span may vary 18–42 m",
+      "refs": [
+        "R01",
+        "R06",
+        "R08"
+      ],
+      "optimization": "parameterized straight/curved variants"
+    },
+    {
+      "id": "BRG-02",
+      "name": "Open catwalk",
+      "type": "bridge",
+      "dimensions_m": {
+        "x": 20,
+        "y": 2.2,
+        "z": 1.2
+      },
+      "shape": "grated walkway with rails and cross-bracing",
+      "details": [
+        "under-deck conduit",
+        "visible brackets"
+      ],
+      "materials": [
+        "M_WornSteel",
+        "M_DarkMetal"
+      ],
+      "placement": "short service connections and facade maintenance routes",
+      "refs": [
+        "R05B",
+        "R06",
+        "R08"
+      ],
+      "optimization": "reuse rail segments"
+    },
+    {
+      "id": "TRN-01",
+      "name": "Elevated transit deck",
+      "type": "infrastructure",
+      "dimensions_m": {
+        "x": 42,
+        "y": 8,
+        "z": 2.2
+      },
+      "shape": "deck with support beams, edge barriers and modular straight/curved pieces",
+      "details": [
+        "underside beams",
+        "service strip"
+      ],
+      "materials": [
+        "M_DarkMetal",
+        "M_WornSteel",
+        "M_AsphaltDry"
+      ],
+      "placement": "multiple elevation bands; vary route direction",
+      "refs": [
+        "R01",
+        "R05B",
+        "R06"
+      ],
+      "optimization": "reuse track/deck segments and hide unseen faces"
+    },
+    {
+      "id": "FAC-01",
+      "name": "Standard facade module",
+      "type": "facade",
+      "dimensions_m": {
+        "x": 4,
+        "y": 8,
+        "z": 0.45
+      },
+      "shape": "window group, panel frame and optional service strip",
+      "details": [
+        "variable window occupancy",
+        "panel seam texture"
+      ],
+      "materials": [
+        "M_CoatedPanel",
+        "M_TintedGlass",
+        "M_AmberEmission"
+      ],
+      "placement": "grid on compatible tower and block surfaces",
+      "refs": [
+        "R08",
+        "R10"
+      ],
+      "optimization": "linked instances; atlas textures"
+    },
+    {
+      "id": "FAC-02",
+      "name": "Corner facade module",
+      "type": "facade",
+      "dimensions_m": {
+        "x": 4,
+        "y": 8,
+        "z": 0.6
+      },
+      "shape": "two-plane corner wrap with aligned sill and top frame",
+      "details": [
+        "continuous corner edge",
+        "optional vertical light strip"
+      ],
+      "materials": [
+        "M_CoatedPanel",
+        "M_TintedGlass",
+        "M_CyanEmission"
+      ],
+      "placement": "building edges",
+      "refs": [
+        "R08",
+        "R10"
+      ],
+      "optimization": "maintain consistent module pivot"
+    },
+    {
+      "id": "SIGN-01",
+      "name": "Billboard assembly",
+      "type": "sign",
+      "dimensions_m": {
+        "x": 8,
+        "y": 1.2,
+        "z": 15
+      },
+      "shape": "display plane, rigid frame and rear maintenance access",
+      "details": [
+        "invented glyphs or abstract imagery",
+        "mounts attached to facade"
+      ],
+      "materials": [
+        "M_DarkMetal",
+        "M_CyanEmission",
+        "M_MagentaEmission",
+        "M_RedEmission"
+      ],
+      "placement": "major facades; not every building gets a billboard",
+      "refs": [
+        "R01",
+        "R05A",
+        "R08",
+        "R10"
+      ],
+      "optimization": "one texture atlas per sign family; avoid transparent stacks"
+    },
+    {
+      "id": "ROOF-01",
+      "name": "Rooftop equipment pack",
+      "type": "prop_cluster",
+      "dimensions_m": {
+        "x": 10,
+        "y": 8,
+        "z": 4
+      },
+      "shape": "fan housings, vents, antenna bases and conduits",
+      "details": [
+        "two or three height tiers",
+        "maintenance service lane"
+      ],
+      "materials": [
+        "M_WornSteel",
+        "M_TechPolymer",
+        "M_AmberEmission"
+      ],
+      "placement": "rooftops and utility terraces",
+      "refs": [
+        "R06",
+        "R08",
+        "R10"
+      ],
+      "optimization": "combine small static details"
+    },
+    {
+      "id": "PIPE-01",
+      "name": "Utility pipe bundle",
+      "type": "infrastructure_detail",
+      "dimensions_m": {
+        "variable": true
+      },
+      "shape": "three to six pipes with broad bends and brackets every 3–5 m",
+      "details": [
+        "avoid high-sided circular geometry at long distances"
+      ],
+      "materials": [
+        "M_WornSteel",
+        "M_DarkMetal"
+      ],
+      "placement": "tower exteriors and lower service corridors",
+      "refs": [
+        "R05B",
+        "R06"
+      ],
+      "optimization": "curve geometry at close range; simplified mesh for LOD"
+    },
+    {
+      "id": "NEON-01",
+      "name": "Emissive facade strip",
+      "type": "emissive_detail",
+      "dimensions_m": {
+        "variable": true
+      },
+      "shape": "thin plane or low-sided strip; use a real profile only where silhouette matters",
+      "details": [
+        "local variations rather than continuous full-building glow"
+      ],
+      "materials": [
+        "M_CyanEmission",
+        "M_MagentaEmission",
+        "M_RedEmission",
+        "M_AmberEmission"
+      ],
+      "placement": "selected facade edges and sign frames",
+      "refs": [
+        "R01",
+        "R05A",
+        "R10"
+      ],
+      "optimization": "combine into emissive atlases where possible"
+    }
+  ],
+  "materials": [
+    {
+      "name": "M_DarkMetal",
+      "base_color_hex": "#20272F",
+      "metallic": 0.82,
+      "roughness": 0.36,
+      "emission_color_hex": "#000000",
+      "emission_strength": 0.0,
+      "use": "main structural panels and tower frames"
+    },
+    {
+      "name": "M_WornSteel",
+      "base_color_hex": "#444A50",
+      "metallic": 0.78,
+      "roughness": 0.52,
+      "emission_color_hex": "#000000",
+      "emission_strength": 0.0,
+      "use": "exposed beams, braces and brackets"
+    },
+    {
+      "name": "M_Concrete",
+      "base_color_hex": "#454A50",
+      "metallic": 0.05,
+      "roughness": 0.84,
+      "emission_color_hex": "#000000",
+      "emission_strength": 0.0,
+      "use": "concrete cores and retaining walls"
+    },
+    {
+      "name": "M_TintedGlass",
+      "base_color_hex": "#071923",
+      "metallic": 0.28,
+      "roughness": 0.18,
+      "emission_color_hex": "#000000",
+      "emission_strength": 0.0,
+      "use": "opaque dark glass; avoid alpha blending where possible"
+    },
+    {
+      "name": "M_CoatedPanel",
+      "base_color_hex": "#18222C",
+      "metallic": 0.52,
+      "roughness": 0.43,
+      "emission_color_hex": "#000000",
+      "emission_strength": 0.0,
+      "use": "painted facade panels"
+    },
+    {
+      "name": "M_CyanEmission",
+      "base_color_hex": "#00D9FF",
+      "metallic": 0.05,
+      "roughness": 0.25,
+      "emission_color_hex": "#00D9FF",
+      "emission_strength": 3.0,
+      "use": "major cyan strips and selected screens"
+    },
+    {
+      "name": "M_MagentaEmission",
+      "base_color_hex": "#FF2BBF",
+      "metallic": 0.02,
+      "roughness": 0.24,
+      "emission_color_hex": "#FF2BBF",
+      "emission_strength": 2.5,
+      "use": "neon frames and screen accents"
+    },
+    {
+      "name": "M_AmberEmission",
+      "base_color_hex": "#FF9B3D",
+      "metallic": 0.03,
+      "roughness": 0.3,
+      "emission_color_hex": "#FF9B3D",
+      "emission_strength": 2.0,
+      "use": "windows, work lights and service beacons"
+    },
+    {
+      "name": "M_RedEmission",
+      "base_color_hex": "#FF3548",
+      "metallic": 0.02,
+      "roughness": 0.28,
+      "emission_color_hex": "#FF3548",
+      "emission_strength": 2.1,
+      "use": "warning strips and small accents"
+    },
+    {
+      "name": "M_AsphaltDry",
+      "base_color_hex": "#11171B",
+      "metallic": 0.02,
+      "roughness": 0.62,
+      "emission_color_hex": "#000000",
+      "emission_strength": 0.0,
+      "use": "road base and dark platforms"
+    },
+    {
+      "name": "M_AsphaltWet",
+      "base_color_hex": "#151B22",
+      "metallic": 0.03,
+      "roughness": 0.18,
+      "emission_color_hex": "#000000",
+      "emission_strength": 0.0,
+      "use": "wet hero floors with roughness variation"
+    },
+    {
+      "name": "M_TechPolymer",
+      "base_color_hex": "#262D35",
+      "metallic": 0.18,
+      "roughness": 0.48,
+      "emission_color_hex": "#000000",
+      "emission_strength": 0.0,
+      "use": "vent housings, service doors and technical plastic"
+    }
+  ],
+  "lighting": {
+    "render_engine_for_lookdev": "EEVEE",
+    "world_fill_intensity_start": 0.12,
+    "key_area_light": {
+      "power_w": 600,
+      "size_m": 30,
+      "tint": "cool blue-gray",
+      "purpose": "broad fill and top-level shape"
+    },
+    "fill_area_light": {
+      "power_w": 180,
+      "size_m": 20,
+      "tint": "neutral cyan",
+      "purpose": "retain shadow detail"
+    },
+    "local_sign_lights": {
+      "power_w_range": [
+        30,
+        120
+      ],
+      "purpose": "selective local bounce near hero signs"
+    },
+    "principle": "use emissive surfaces as primary visible neon; do not create one real light per sign",
+    "browser_note": "Blender-only bloom/compositor and Eevee effects are not guaranteed in glTF; reimplement glow in the target renderer"
+  },
+  "cameras": {
+    "hero": {
+      "projection": "PERSP",
+      "resolution": [
+        1536,
+        2304
+      ],
+      "lens_mm": 35,
+      "location": [
+        0,
+        -142,
+        -20
+      ],
+      "target": [
+        0,
+        0,
+        5
+      ],
+      "purpose": "vertical hero render with foreground infrastructure",
+      "note_r1": "moved from (0,-108,-20) to clear the outer band; HERO-DECK platform gives the foreground railing"
+    },
+    "descent": {
+      "projection": "PERSP",
+      "location_start": [
+        0,
+        -150,
+        128
+      ],
+      "target_offset": [
+        0,
+        0,
+        -16
+      ],
+      "z_end": -128,
+      "rotation_test_degrees": [
+        0,
+        45,
+        90,
+        135,
+        180,
+        225,
+        270,
+        315
+      ],
+      "purpose": "validate scene rotation and downward movement",
+      "note_r1": "moved from radius 118 to 150: the rotating city reaches radius 124"
+    },
+    "orthographic": [
+      {
+        "name": "CAM_TOP",
+        "projection": "ORTHO",
+        "direction": "-Z",
+        "purpose": "radial footprint"
+      },
+      {
+        "name": "CAM_FRONT",
+        "projection": "ORTHO",
+        "direction": "+Y/-Y elevation",
+        "purpose": "full-height silhouette"
+      },
+      {
+        "name": "CAM_BACK",
+        "projection": "ORTHO",
+        "direction": "opposite of CAM_FRONT",
+        "purpose": "rear geometry"
+      },
+      {
+        "name": "CAM_LEFT",
+        "projection": "ORTHO",
+        "direction": "-X",
+        "purpose": "side elevation"
+      },
+      {
+        "name": "CAM_RIGHT",
+        "projection": "ORTHO",
+        "direction": "+X",
+        "purpose": "side elevation"
+      },
+      {
+        "name": "CAM_BOTTOM",
+        "projection": "ORTHO",
+        "direction": "+Z",
+        "purpose": "underside and lower supports"
+      }
+    ]
+  },
+  "connections": [
+    {
+      "id": "CONN-BRIDGE-ENDS",
+      "rule": "each bridge endpoint must touch an identified support face or be explicitly cantilevered",
+      "validation": "inspect both ends in perspective and orthographic renders"
+    },
+    {
+      "id": "CONN-VERTICAL-CONTINUITY",
+      "rule": "major shafts, facade ribs, cable runs and pipes should continue through module boundary bands",
+      "validation": "render 2 m bands around Z=-96,-48,0,48,96"
+    },
+    {
+      "id": "CONN-FACADE-GRID",
+      "rule": "4 m facade modules align to common floor datums and consistent pivot points",
+      "validation": "compare top, bottom and corner edges"
+    },
+    {
+      "id": "CONN-RADIAL-COVERAGE",
+      "rule": "all 12 angular sectors contain meaningful architecture and at least two depth layers",
+      "validation": "turntable renders at 45-degree intervals"
+    },
+    {
+      "id": "CONN-NO-CAP",
+      "rule": "vertical module boundaries do not create a visible floor, cap or empty gap",
+      "validation": "descent sequence and seam-band renders"
+    }
+  ],
+  "references": [
+    {
+      "id": "R01",
+      "file": "renders/R01_main_concept_vertical.png",
+      "purpose": "hero look and primary palette",
+      "authority": "mood reference"
+    },
+    {
+      "id": "R02",
+      "file": "renders/R02_rotation_eight_view_sheet.png",
+      "purpose": "illustrative 360-degree coverage",
+      "authority": "not a verified same-scene turntable"
+    },
+    {
+      "id": "R03A",
+      "file": "renders/R03_orthographic_top_view.png",
+      "purpose": "radial footprint",
+      "authority": "conceptual top-view reference"
+    },
+    {
+      "id": "R03B",
+      "file": "renders/R03_orthographic_front_elevation.png",
+      "purpose": "height and silhouette",
+      "authority": "conceptual elevation reference"
+    },
+    {
+      "id": "R04",
+      "file": "renders/R04_vertical_zone_triptych.png",
+      "purpose": "upper/middle/lower design language",
+      "authority": "zone reference, not stitched continuity proof"
+    },
+    {
+      "id": "R05A",
+      "file": "renders/R05A_upper_middle_city_concept.png",
+      "purpose": "facade density and neon composition",
+      "authority": "mood reference"
+    },
+    {
+      "id": "R05B",
+      "file": "renders/R05B_lower_infrastructure_detail.png",
+      "purpose": "industrial lower-level details",
+      "authority": "detail reference"
+    },
+    {
+      "id": "R06",
+      "file": "renders/R06_cutaway_and_spatial_studies.png",
+      "purpose": "cutaway, depth bands and modular studies",
+      "authority": "concept sheet, no dimensions"
+    },
+    {
+      "id": "R07",
+      "file": "renders/R07_gray_clay_blockout_reference.png",
+      "purpose": "massing and layered arrangement",
+      "authority": "not a primitive-only blockout"
+    },
+    {
+      "id": "R08",
+      "file": "renders/R08_modular_architecture_asset_sheet.png",
+      "purpose": "building modules and bridge form language",
+      "authority": "asset design reference"
+    },
+    {
+      "id": "R09",
+      "file": "renders/R09_small_architectural_elements_sheet.png",
+      "purpose": "small infrastructure and facade components",
+      "authority": "concept sheet; create exact views from final Blender meshes"
+    },
+    {
+      "id": "R10",
+      "file": "renders/R10_material_atlas.png",
+      "purpose": "PBR look direction",
+      "authority": "visual-only material reference; values are in materials array"
+    },
+    {
+      "id": "SRC01",
+      "file": "source_references/reference_01_neon_street.webp",
+      "purpose": "user-supplied visual reference"
+    },
+    {
+      "id": "SRC02",
+      "file": "source_references/reference_02_highrise_panorama.jpg",
+      "purpose": "user-supplied visual reference"
+    }
+  ],
+  "optimization": {
+    "triangle_budget_visible_target": 500000,
+    "triangle_budget_visible_warning": 750000,
+    "draw_call_target": 60,
+    "draw_call_warning": 100,
+    "texture_sizes_px": {
+      "large_building_atlases": 2048,
+      "props": 1024,
+      "small_details": 512
+    },
+    "practices": [
+      "instancing",
+      "texture atlases",
+      "opaque materials where possible",
+      "remove hidden faces",
+      "LOD for distant geometry",
+      "limit real lights",
+      "avoid tiny geometry below a few screen pixels"
+    ],
+    "lod_policy": "prefer separate verified LOD exports or a target-engine LOD system; do not assume universal MSFT_lod support"
+  },
+  "export": {
+    "format": "glTF 2.0 / GLB",
+    "include_collections": [
+      "99_EXPORT"
+    ],
+    "exclude_collections": [
+      "00_REFERENCE",
+      "01_BLOCKOUT",
+      "90_CAMERAS_LIGHTING"
+    ],
+    "materials": "Principled BSDF metallic-roughness compatible; pack textures and verify emissive/base-color maps",
+    "avoid": [
+      "Blender-only procedural nodes",
+      "unbaked compositor effects",
+      "unsupported shader nodes",
+      "large stacks of transparent surfaces",
+      "dependency on ray-traced reflections"
+    ],
+    "validation": [
+      "load in target browser renderer",
+      "check texture completeness",
+      "check rotation pivot",
+      "check emission intensity",
+      "profile mobile and desktop",
+      "confirm budgets"
+    ]
+  },
+  "slide_mounts": {
+    "count": 13,
+    "radius_m": 9.2,
+    "top_z_m": 100,
+    "spacing_z_m": 18,
+    "turn_rad_per_slide": 0.95,
+    "angle_convention": "slide i sits at Z = top - i*spacing and azimuth a = i*turn, measured from +X towards -Y (three.js: from +X towards +Z after glTF Y-up conversion); the card faces outward along (cos a, -sin a, 0)",
+    "logo_anchor_z_m": 136,
+    "browser_scale": "presentation world units = meters x 0.5",
+    "camera_clearance": "the presentation camera stays within radius 40 m; no geometry between radius 5 m and 44 m except slide mounts and open bridges on the side opposite the helix"
+  },
+  "revision": {
+    "id": "R4",
+    "date": "2026-10-30",
+    "previous": {
+      "id": "R3",
+      "date": "2026-10-29",
+      "previous": {
+        "id": "R2",
+        "date": "2026-10-29",
+        "previous": {
+          "id": "R1",
+          "date": "2026-10-29",
+          "reason": "slides of the QA Platform presentation are mounted on a central tower; the camera orbits it inside the shaft, so the shaft is widened and the city is moved outward",
+          "changes": [
+            "inner viewing shaft radius 14 -> 44 m; max radius 92 -> 124 m",
+            "depth bands 18-38/38-66/66-92 -> 46-64/64-94/94-124 m",
+            "new object TWR-00 slide spire and section slide_mounts",
+            "hero camera (0,-108,-20) -> (0,-142,-20); descent camera radius 118 -> 150 m",
+            "Blender lights: broad key and fill are sun lights; area lights of 600/180 W do not reach across a 248 m city (inverse-square falloff)",
+            "facade window variation uses four tiling facade materials M_Facade_* with base and emissive textures, and signs use two glyph atlases M_SignAtlas_*; both derived from M_CoatedPanel / M_TintedGlass and the emission presets"
+          ]
+        },
+        "reason": "R1 spire (radius 7 m, light coated panels, crown 4 m above the first slide) read as a white wall behind the slides and filled the first frame; the upper zone above +96 m was nearly empty",
+        "changes": [
+          "TWR-00: core radius 7 -> 1.6 m inside a 2.6 m lattice (axis column of R06), dark metal, crown +104 -> +114 m, logo anchor +112 -> +136 m",
+          "upper zone: spire towers with ring decks and lattice needles up to +144 m (R04, R05A)",
+          "facades: ledges, pilasters, exposed truss bays, balconies, rooftop plant and lattice masts (R08, R09)",
+          "large vertical art screens M_ScreenArt (R01, R05A); warm amber window palette dominant (R01, R05B)",
+          "transit trains on TRN-01 rings"
+        ]
+      },
+      "reason": "review: city read flat and floating, crown and transport missing, invented glyphs on signs, no surface detail maps, empty top of frame, rain instead of petals, white ring above the first slide",
+      "changes": [
+        "05_FOUNDATION FND-01: deck slab to R_MAX+8 m, B1 girders/ring beams/columns, B2 slab, overhanging service platform with rail and lamps, pipes, downlights, 8 tapered legs to Z_MIN-150 m with braces, core under the shaft",
+        "25_FAR_CITY: 54 towers at 165-235 m and 60 at 255-340 m up to +360 m, needles, ring decks, neon, ads, 3 air-route light chains",
+        "TWR-00 crown: two decks with rails, 3 equipment pods with monitors, 3 dishes, 3 lattice masts (152-166 m) with antennas and beacons, hanging cables; spire services: conduits, junction boxes, monitors, landings per collar",
+        "removed: collar hairline lights and the logo halo ring (both burned to white bands in the browser)",
+        "signs: atlases baked from the original presentation (signal/signage.js signTexture, signal/future.js ad layout) by atlas/bake.js: 25 vertical, 12 horizontal, 8 ads, 6 readable monitors; procedural glyphs removed",
+        "materials: detail maps (grime base, normal, metallic-roughness) for metal, concrete, panel and asphalt families; facade normal/MR maps (recesses, seams, mullions, streaks); darker graphite palette",
+        "PROPS (props.glb): VEH-01 courier, VEH-02 sedan, VEH-03 cargo, VEH-04 patrol with glass cabins, head/tail lights, engine glow; PETAL (cupped, notched, 0.014 m thick)",
+        "free_lanes(): air lanes ray-checked 4.5 m clear of geometry, exported as PROPS_ROOT extras air_lanes_m"
+      ]
+    },
+    "reason": "review: tower top and column did not match the main presentation, signs read blurred, the city was too bright",
+    "changes": [
+      "TWR-00 column = signal/column.js of the main presentation (tower/column.js, three.js); Blender keeps only MOUNT-xx and LOGO-ANCHOR",
+      "removed: lattice spire, crown, mounts and BRG-02_SPIRE shaft bridges; M_ScreenArt abstract screens",
+      "large neon signs (mega blades 3.5-5 m wide on shaft corners), larger rooftop signs",
+      "video screens 16:9 and 9:16 with channels M_Video_0..5, animated in the browser (tower/screens.js)"
+    ]
+  }
+}

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ru" data-deck="external">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Signal — QA Platform</title>
+  <meta name="description" content="Иммерсивная презентация QA Platform: колбэки и моки в одном сервисе — сигнальная магистраль и слайды по спирали вокруг неё.">
+  <!-- Стили слайдов — общие с 3d.html; signal/style.css — сцена поверх них,
+       signal/intro.css — вступление -->
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="3d/deck.css">
+  <link rel="stylesheet" href="signal/style.css">
+  <link rel="stylesheet" href="signal/intro.css">
+</head>
+<body>
+  <!-- Вступление: motion-сцена, пока презентация грузится; этапы старта
+       отмечаются по факту (signal/intro.js) -->
+  <div class="mv" id="boot" role="status" aria-live="polite" aria-label="Загрузка презентации">
+    <div class="mv__veil" aria-hidden="true"></div>
+    <div class="mv__stage" aria-hidden="true"></div>
+    <div class="mv__hud" aria-hidden="true">
+      <i></i><i></i><i></i><i></i>
+      <p class="mv__kicker"><span lang="ja">起動シーケンス</span><span>Signal · intro</span></p>
+      <span class="mv__tc">00:00</span>
+      <p class="mv__tate" lang="ja">信号幹線<span>第一系統</span></p>
+      <p class="mv__data"><span>pkt<b class="mv__pkt">0000</b></span><span>scan x<b class="mv__scanx">+0000</b></span></p>
+    </div>
+    <div class="mv__title">
+      <b class="mv__word">QA Platform</b>
+      <span class="mv__sub" lang="ja">品質保証基盤</span>
+    </div>
+    <span class="mv__seal" lang="ja" aria-hidden="true">品質</span>
+    <div class="mv__gate">
+      <p class="mv__eyebrow"><span lang="ja">信号待機</span><span>Канал на линии</span></p>
+      <p class="mv__name">QA Platform</p>
+      <p class="mv__lede">Колбэки и моки в одном сервисе</p>
+      <button type="button"><span lang="ja">起動</span>Запустить сигнал</button>
+      <p class="mv__hint">Enter, пробел или клик · со звуком</p>
+    </div>
+    <p class="mv__status">
+      <span class="mv__status-text">Подготовка…</span>
+      <span class="mv__bar" aria-hidden="true"><i></i></span>
+      <span class="mv__count"></span>
+      <button type="button" class="mv__retry" hidden>Повторить загрузку</button>
+    </p>
+    <p class="mv__skip" aria-hidden="true">Esc — пропустить</p>
+  </div>
+
+  <canvas class="scene" id="scene" aria-hidden="true"></canvas>
+
+  <!-- Карточки: слайды из 3d.html, спроецированные в сцену (signal/css3d.js) -->
+  <main class="deck3d" id="cards"></main>
+
+  <!-- Рамка кадра: метки по углам и вертикальная подпись — как поля чертежа -->
+  <div class="frame" aria-hidden="true">
+    <i class="frame__mark frame__mark--tl"></i><i class="frame__mark frame__mark--tr"></i>
+    <i class="frame__mark frame__mark--bl"></i><i class="frame__mark frame__mark--br"></i>
+    <p class="frame__tate" lang="ja">品質保証基盤<span id="frameChapter">序章</span></p>
+  </div>
+
+  <header class="nav">
+    <a class="nav__brand" href="#" id="toStart"><span class="nav__seal" lang="ja" aria-hidden="true">品</span>QA Platform<span class="nav__sub">signal</span></a>
+    <!-- Переключатель глав: предыдущая — текущая — следующая -->
+    <div class="switch" id="switch">
+      <button type="button" class="switch__btn" id="switchPrev" aria-label="Предыдущая глава">&lt;&lt;</button>
+      <span class="switch__name" id="switchName" aria-live="polite"></span>
+      <button type="button" class="switch__btn" id="switchNext" aria-label="Следующая глава">&gt;&gt;</button>
+    </div>
+  </header>
+
+  <!-- Шкала прогресса по главам у правого края -->
+  <div class="rail" aria-hidden="true"><i class="rail__thumb" id="railThumb"></i></div>
+
+  <!-- Подпись справа внизу — на всю презентацию; над ней счётчик слайдов -->
+  <section class="intro" aria-label="QA Platform">
+    <p class="counter" aria-live="polite"><span id="counterNum">00</span><span class="counter__total"></span></p>
+    <h1 class="intro__title">QA Platform</h1>
+  </section>
+
+  <nav class="menu" aria-label="Главы">
+    <p class="menu__title">Куда смотрим?</p>
+    <ol class="menu__list" id="menuList"></ol>
+  </nav>
+
+  <!-- Подпись главы: японский код → глитч → русское название; при посадке
+       переезжает в шапку (signal/title.js). Для экранных читалок глава
+       объявляется переключателем (#switchName, aria-live) -->
+  <p class="chapter-title" id="chapterTitle" aria-hidden="true"></p>
+
+  <p class="overview-hint" id="overviewHint">Обзор: стрелки выбирают главу, Enter открывает, Esc возвращает</p>
+
+  <noscript><p class="noscript">Сцене нужен JavaScript и WebGL.</p></noscript>
+  <script type="module" src="signal/app.js"></script>
+</body>
+</html>

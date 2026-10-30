@@ -3,18 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Signal — QA Platform</title>
-  <meta name="description" content="Иммерсивная презентация QA Platform: колбэки и моки в одном сервисе — сигнальная магистраль и слайды по спирали вокруг неё.">
-  <!-- Стили слайдов — общие с 3d.html; signal/style.css — сцена поверх них,
-       signal/intro.css — вступление -->
+  <title>Tower — QA Platform</title>
+  <meta name="description" content="Иммерсивная презентация QA Platform: колбэки и моки в одном сервисе — неоновый мегаполис и слайды на центральной башне.">
+  <!-- Стили слайдов — общие с 3d.html; tower/style.css — сцена поверх них,
+       tower/intro.css — вступление -->
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="3d/deck.css">
-  <link rel="stylesheet" href="signal/style.css">
-  <link rel="stylesheet" href="signal/intro.css">
+  <link rel="stylesheet" href="tower/style.css">
+  <link rel="stylesheet" href="tower/intro.css">
 </head>
 <body>
   <!-- Вступление: motion-сцена, пока презентация грузится; этапы старта
-       отмечаются по факту (signal/intro.js) -->
+       отмечаются по факту (tower/intro.js) -->
   <div class="mv" id="boot" role="status" aria-live="polite" aria-label="Загрузка презентации">
     <div class="mv__veil" aria-hidden="true"></div>
     <div class="mv__stage" aria-hidden="true"></div>
@@ -34,7 +34,13 @@
       <p class="mv__eyebrow"><span lang="ja">信号待機</span><span>Канал на линии</span></p>
       <p class="mv__name">QA Platform</p>
       <p class="mv__lede">Колбэки и моки в одном сервисе</p>
-      <button type="button"><span lang="ja">起動</span>Запустить сигнал</button>
+      <button type="button" class="mv__start" data-state="loading" aria-describedby="mv-start-meta">
+        <span class="mv__start-led" aria-hidden="true"></span>
+        <span class="mv__start-jp" lang="ja" aria-hidden="true">起動</span>
+        <span class="mv__start-label">Запустить сигнал</span>
+        <span class="mv__start-meta" id="mv-start-meta">Загрузка</span>
+        <i class="mv__start-charge" aria-hidden="true"></i>
+      </button>
       <p class="mv__hint">Enter, пробел или клик · со звуком</p>
     </div>
     <p class="mv__status">
@@ -48,7 +54,7 @@
 
   <canvas class="scene" id="scene" aria-hidden="true"></canvas>
 
-  <!-- Карточки: слайды из 3d.html, спроецированные в сцену (signal/css3d.js) -->
+  <!-- Карточки: слайды из 3d.html, спроецированные в сцену (tower/css3d.js) -->
   <main class="deck3d" id="cards"></main>
 
   <!-- Рамка кадра: метки по углам и вертикальная подпись — как поля чертежа -->
@@ -59,7 +65,7 @@
   </div>
 
   <header class="nav">
-    <a class="nav__brand" href="#" id="toStart"><span class="nav__seal" lang="ja" aria-hidden="true">品</span>QA Platform<span class="nav__sub">signal</span></a>
+    <a class="nav__brand" href="#" id="toStart"><span class="nav__seal" lang="ja" aria-hidden="true">品</span>QA Platform<span class="nav__sub">tower</span></a>
     <!-- Переключатель глав: предыдущая — текущая — следующая -->
     <div class="switch" id="switch">
       <button type="button" class="switch__btn" id="switchPrev" aria-label="Предыдущая глава">&lt;&lt;</button>
@@ -83,13 +89,13 @@
   </nav>
 
   <!-- Подпись главы: японский код → глитч → русское название; при посадке
-       переезжает в шапку (signal/title.js). Для экранных читалок глава
+       переезжает в шапку (tower/title.js). Для экранных читалок глава
        объявляется переключателем (#switchName, aria-live) -->
   <p class="chapter-title" id="chapterTitle" aria-hidden="true"></p>
 
   <p class="overview-hint" id="overviewHint">Обзор: стрелки выбирают главу, Enter открывает, Esc возвращает</p>
 
   <noscript><p class="noscript">Сцене нужен JavaScript и WebGL.</p></noscript>
-  <script type="module" src="signal/app.js"></script>
+  <script type="module" src="tower/app.js"></script>
 </body>
 </html>

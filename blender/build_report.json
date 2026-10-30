@@ -1,0 +1,505 @@
+{
+  "checks": {
+    "triangles_by_collection": {
+      "05_FOUNDATION": 38036,
+      "10_MAIN_TOWERS": 3504,
+      "20_BUILDINGS": 159136,
+      "25_FAR_CITY": 30072,
+      "40_BRIDGES_PLATFORMS": 20084,
+      "50_ROADS_INFRASTRUCTURE": 55072,
+      "60_SIGNS_SCREENS": 52100,
+      "70_NEON_LIGHTS": 1020,
+      "80_DETAILS": 37428
+    },
+    "triangles_total": 396452,
+    "triangles_lite": 359024,
+    "materials_used": [
+      "M_Ads",
+      "M_AmberEmission",
+      "M_AsphaltDry",
+      "M_AsphaltWet",
+      "M_CoatedPanel",
+      "M_Concrete",
+      "M_CyanEmission",
+      "M_DarkMetal",
+      "M_Facade_Glass",
+      "M_Facade_Indus",
+      "M_Facade_Office",
+      "M_Facade_Resid",
+      "M_Headlight",
+      "M_MagentaEmission",
+      "M_RedEmission",
+      "M_SignAtlas_H",
+      "M_SignAtlas_V",
+      "M_TechPolymer",
+      "M_TintedGlass",
+      "M_Video_0",
+      "M_Video_1",
+      "M_Video_2",
+      "M_Video_3",
+      "M_Video_4",
+      "M_Video_5",
+      "M_WornSteel"
+    ],
+    "stacks": 80,
+    "signs": 293,
+    "instances": 194,
+    "bridges": 70,
+    "bridge_span_violations": [],
+    "shaft_intrusions": [],
+    "stacks_per_sector": [
+      8,
+      5,
+      8,
+      7,
+      7,
+      7,
+      5,
+      8,
+      6,
+      6,
+      7,
+      6
+    ],
+    "presentation_camera_blocked": [],
+    "presentation_poses_checked": 38,
+    "stacks_crossing_each_seam": {
+      "-96": 80,
+      "-48": 77,
+      "0": 68,
+      "48": 56,
+      "96": 36
+    },
+    "air_lanes": {
+      "count": 85,
+      "clearance_m": 3.0,
+      "lanes_r_z_m": [
+        [
+          56.0,
+          124.0
+        ],
+        [
+          56.0,
+          136.0
+        ],
+        [
+          62.0,
+          104.0
+        ],
+        [
+          62.0,
+          116.0
+        ],
+        [
+          62.0,
+          128.0
+        ],
+        [
+          68.0,
+          120.0
+        ],
+        [
+          68.0,
+          132.0
+        ],
+        [
+          86.0,
+          128.0
+        ],
+        [
+          92.0,
+          64.0
+        ],
+        [
+          92.0,
+          112.0
+        ],
+        [
+          92.0,
+          124.0
+        ],
+        [
+          92.0,
+          136.0
+        ],
+        [
+          98.0,
+          116.0
+        ],
+        [
+          98.0,
+          128.0
+        ],
+        [
+          136.0,
+          -120.0
+        ],
+        [
+          136.0,
+          -108.0
+        ],
+        [
+          136.0,
+          -96.0
+        ],
+        [
+          136.0,
+          -84.0
+        ],
+        [
+          136.0,
+          -72.0
+        ],
+        [
+          136.0,
+          -60.0
+        ],
+        [
+          136.0,
+          -48.0
+        ],
+        [
+          136.0,
+          -36.0
+        ],
+        [
+          136.0,
+          -18.0
+        ],
+        [
+          136.0,
+          -6.0
+        ],
+        [
+          136.0,
+          6.0
+        ],
+        [
+          136.0,
+          18.0
+        ],
+        [
+          136.0,
+          30.0
+        ],
+        [
+          136.0,
+          42.0
+        ],
+        [
+          136.0,
+          54.0
+        ],
+        [
+          136.0,
+          66.0
+        ],
+        [
+          136.0,
+          78.0
+        ],
+        [
+          136.0,
+          90.0
+        ],
+        [
+          136.0,
+          102.0
+        ],
+        [
+          136.0,
+          114.0
+        ],
+        [
+          136.0,
+          126.0
+        ],
+        [
+          136.0,
+          138.0
+        ],
+        [
+          136.0,
+          150.0
+        ],
+        [
+          136.0,
+          162.0
+        ],
+        [
+          136.0,
+          174.0
+        ],
+        [
+          136.0,
+          186.0
+        ],
+        [
+          136.0,
+          198.0
+        ],
+        [
+          146.0,
+          -120.0
+        ],
+        [
+          146.0,
+          -108.0
+        ],
+        [
+          146.0,
+          -96.0
+        ],
+        [
+          146.0,
+          -84.0
+        ],
+        [
+          146.0,
+          -72.0
+        ],
+        [
+          146.0,
+          -60.0
+        ],
+        [
+          146.0,
+          -48.0
+        ],
+        [
+          146.0,
+          -36.0
+        ],
+        [
+          146.0,
+          -24.0
+        ],
+        [
+          146.0,
+          -12.0
+        ],
+        [
+          146.0,
+          0.0
+        ],
+        [
+          146.0,
+          12.0
+        ],
+        [
+          146.0,
+          24.0
+        ],
+        [
+          146.0,
+          36.0
+        ],
+        [
+          146.0,
+          48.0
+        ],
+        [
+          146.0,
+          60.0
+        ],
+        [
+          146.0,
+          72.0
+        ],
+        [
+          146.0,
+          84.0
+        ],
+        [
+          146.0,
+          96.0
+        ],
+        [
+          146.0,
+          108.0
+        ],
+        [
+          146.0,
+          120.0
+        ],
+        [
+          146.0,
+          132.0
+        ],
+        [
+          146.0,
+          144.0
+        ],
+        [
+          146.0,
+          156.0
+        ],
+        [
+          146.0,
+          168.0
+        ],
+        [
+          146.0,
+          180.0
+        ],
+        [
+          146.0,
+          192.0
+        ],
+        [
+          156.0,
+          108.0
+        ],
+        [
+          156.0,
+          120.0
+        ],
+        [
+          156.0,
+          132.0
+        ],
+        [
+          156.0,
+          144.0
+        ],
+        [
+          156.0,
+          162.0
+        ],
+        [
+          156.0,
+          174.0
+        ],
+        [
+          156.0,
+          186.0
+        ],
+        [
+          156.0,
+          198.0
+        ],
+        [
+          70.0,
+          160.0
+        ],
+        [
+          70.0,
+          178.0
+        ],
+        [
+          70.0,
+          190.0
+        ],
+        [
+          100.0,
+          160.0
+        ],
+        [
+          100.0,
+          178.0
+        ],
+        [
+          100.0,
+          190.0
+        ],
+        [
+          125.0,
+          160.0
+        ],
+        [
+          125.0,
+          178.0
+        ],
+        [
+          125.0,
+          190.0
+        ]
+      ]
+    },
+    "props_triangles": {
+      "VEH-01": 310,
+      "VEH-02": 246,
+      "VEH-03": 590,
+      "VEH-04": 322,
+      "PETAL": 236
+    }
+  },
+  "blender": "5.2.3 LTS",
+  "seconds": 143.2,
+  "export": {
+    "city.glb": {
+      "bytes": 7360596,
+      "triangles": 396452,
+      "primitives": 80,
+      "nodes": [
+        "EXP_FOUNDATION",
+        "EXP_MAIN_TOWERS",
+        "EXP_BUILDINGS",
+        "EXP_FAR_CITY",
+        "EXP_BRIDGES_PLATFORMS",
+        "EXP_ROADS_INFRASTRUCTURE",
+        "EXP_SIGNS_SCREENS",
+        "EXP_NEON_LIGHTS",
+        "EXP_DETAILS"
+      ]
+    },
+    "city_lite.glb": {
+      "bytes": 6761292,
+      "triangles": 354584,
+      "primitives": 76,
+      "nodes": [
+        "EXP_FOUNDATION",
+        "EXP_MAIN_TOWERS",
+        "EXP_BUILDINGS",
+        "EXP_FAR_CITY",
+        "EXP_BRIDGES_PLATFORMS",
+        "EXP_ROADS_INFRASTRUCTURE",
+        "EXP_SIGNS_SCREENS",
+        "EXP_NEON_LIGHTS"
+      ]
+    },
+    "props.glb": {
+      "bytes": 183188,
+      "nodes": [
+        "PROPS_ROOT",
+        "VEH-01",
+        "VEH-02",
+        "VEH-03",
+        "VEH-04",
+        "PETAL"
+      ]
+    }
+  },
+  "renders": [
+    "B01_hero.jpg",
+    "B02_azimuth_000.jpg",
+    "B02_azimuth_045.jpg",
+    "B02_azimuth_090.jpg",
+    "B02_azimuth_135.jpg",
+    "B02_azimuth_180.jpg",
+    "B02_azimuth_225.jpg",
+    "B02_azimuth_270.jpg",
+    "B02_azimuth_315.jpg",
+    "B03_ortho_back.jpg",
+    "B03_ortho_bottom.jpg",
+    "B03_ortho_front.jpg",
+    "B03_ortho_left.jpg",
+    "B03_ortho_right.jpg",
+    "B03_ortho_top.jpg",
+    "B04_descent_lower.jpg",
+    "B04_descent_middle.jpg",
+    "B04_descent_upper.jpg",
+    "B05_seam_z+000.jpg",
+    "B05_seam_z+048.jpg",
+    "B05_seam_z+096.jpg",
+    "B05_seam_z-048.jpg",
+    "B05_seam_z-096.jpg",
+    "B06_clay_blockout.jpg",
+    "B07_slide_pose_01.jpg",
+    "B07_slide_pose_07.jpg",
+    "B07_slide_pose_13.jpg",
+    "B08_props.jpg",
+    "B09_foundation.jpg",
+    "B10_crown.jpg"
+  ]
+}

@@ -1,0 +1,550 @@
+/* Signal — сцена QA Platform: сигнальная магистраль в ночном городе; слайды
+   3d.html — карточки в ней. Стили самих слайдов — из styles.css и
+   3d/deck.css (их палитру приводит к этой системе signal/palette.js); здесь —
+   сцена и интерфейс поверх. Переменные с префиксом --sg-, чтобы не перекрыть
+   палитру слайдов.
+
+   Дизайн-система
+   · Цвет: графит, сталь, белый. Один неоновый акцент — циан; второй цвет —
+     красный печати, только для маркировки и ошибок. Латунь — предупреждения.
+   · Night City — жёлтый, бирюзовый, красный — цвет сигнала в движении: глитч
+     заголовка, голо-рекламы города, метки «здесь и сейчас» (флажок карточки,
+     ползунок шкалы). В покое интерфейс остаётся графитовым.
+   · Свечение — только у индикаторов, активных состояний и контуров в фокусе.
+   · Геометрия: прямые углы со скосами (clip-path), линии 1px, скругления — нет.
+   · Типографика: sans — заголовки, mono — служебные подписи, JP — маркировка
+     (каждая японская надпись осмысленна, перевод — в signal/signage.js).
+   · Движение: появление — ease-out, перемещение по экрану — ease-in-out;
+     интерфейс 160–240 мс, сцена и загрузка — до 900 мс. Бесконечных
+     пульсаций и глитчей нет. */
+
+:root {
+  --sg-bg: #08090b;
+  --sg-graphite: #111317;
+  --sg-panel: rgba(14, 16, 20, 0.86);
+  --sg-fg: #f2f4f7;
+  --sg-dim: rgba(242, 244, 247, 0.62);
+  --sg-faint: rgba(242, 244, 247, 0.36);
+  --sg-steel: #9aa1ad;
+  --sg-line: rgba(154, 161, 173, 0.22);
+  --sg-line-strong: rgba(154, 161, 173, 0.42);
+  --sg-accent: #2fd8ff;
+  --sg-seal: #e5323b;
+  --sg-brass: #c4a574;
+  --sg-nc-yellow: #fcee0a;
+  --sg-nc-cyan: #00f0ff;
+  --sg-nc-red: #ff003c;
+  --sg-glow: 0 0 6px rgba(47, 216, 255, 0.55);
+  --sg-jp: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Noto Sans JP', Meiryo, sans-serif;
+  --sg-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --sg-ease-move: cubic-bezier(0.77, 0, 0.175, 1);
+  --sg-fast: 160ms;
+  --sg-base: 240ms;
+  --sg-pad: clamp(1.25rem, 3.4vw, 3rem);
+  --sg-cut: 10px;
+}
+
+/* Масштаб всей сцены — от высоты экрана: вёрстка слайдов и интерфейса в rem,
+   и 16px рассчитаны на 1440px по высоте. На 1080p корень ~13.75px, на 768 —
+   12px; узкий экран (4:3) ограничивает по ширине. Телефон — свой масштаб */
+@media (min-width: 721px) {
+  html { font-size: clamp(12px, min(calc(7px + 0.625vh), calc(5px + 0.6vw)), 16px); }
+}
+
+/* Прокрутки нет — камеру двигают клавиши, колесо и свайп */
+html, body { height: 100%; overflow: hidden; scroll-snap-type: none; background: var(--sg-bg); }
+::selection { background: rgba(47, 216, 255, 0.3); }
+
+/* ── Scene ── */
+.scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 0; opacity: 0; transition: opacity 0.9s var(--sg-ease-out); }
+.is-ready .scene, .is-ready .deck3d { opacity: 1; }
+.no-webgl .scene { display: none; }
+
+/* ── Cards: DOM-слой с перспективой камеры. Класс не .cards — так называется
+   сетка карточек внутри слайдов ── */
+.deck3d { position: fixed; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; opacity: 0; transition: opacity 0.9s var(--sg-ease-out) 0.15s; }
+.css3d__stage { position: absolute; inset: 0; transform-style: preserve-3d; }
+.css3d__item { position: absolute; }
+/* В движении слой не перерастеризуется каждый кадр; на остановке will-change
+   снимается, и браузер перерисовывает текст чётким в масштабе 1:1 */
+.deck3d.is-moving .css3d__item { will-change: transform, opacity; }
+/* Плоский режим (css3d.js): карточка в фокусе — обычный 2D-слой от левого
+   верхнего угла, соседи на это время скрыты */
+.deck3d.is-flat .css3d__item { transform-origin: 0 0; }
+.deck3d.is-flat .css3d__item:not(.is-focus) { visibility: hidden; }
+
+/* Карточка — панель оборудования: стальной кант 1px, скошенный угол, тёмное
+   стекло внутри. Акцент — только уголки-скобы и метка главы */
+.card3d {
+  --tint: var(--sg-accent);
+  --cut: 24px;
+  /* position не задаём: карточка — .css3d__item, ей нужен absolute из слоя */
+  width: var(--card-w, 80vw);
+  padding: 1px;
+  background: linear-gradient(135deg, var(--sg-line-strong), var(--sg-line) 40% 60%, var(--sg-line-strong));
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+  backface-visibility: hidden;
+  pointer-events: none;
+}
+.card3d__scroll {
+  position: relative;
+  /* Высота по контенту, но не выше экрана; длинный слайд прокручивается */
+  max-height: var(--card-max-h, 86vh);
+  overflow: hidden auto;
+  scrollbar-width: none;
+  /* Модульная сетка на стекле: шаг 48px, едва видна — как разметка листа */
+  background:
+    linear-gradient(rgba(154, 161, 173, 0.035) 1px, transparent 1px) 0 0 / 100% 48px,
+    linear-gradient(90deg, rgba(154, 161, 173, 0.035) 1px, transparent 1px) 0 0 / 48px 100%,
+    rgba(13, 14, 18, 0.97);
+  clip-path: polygon(calc(var(--cut) - 0.4px) 0, 100% 0, 100% calc(100% - var(--cut) + 0.4px), calc(100% - var(--cut) + 0.4px) 100%, 0 100%, 0 calc(var(--cut) - 0.4px));
+}
+.card3d__scroll::-webkit-scrollbar { display: none; }
+.card3d.is-focus { pointer-events: auto; }
+/* Посадка: по стеклу один раз проходит тонкая линия развёртки */
+.card3d::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--sg-accent) 20% 80%, transparent);
+  opacity: 0; pointer-events: none;
+}
+.card3d.is-focus::after { animation: cardScan 0.6s var(--sg-ease-out) both; }
+@keyframes cardScan {
+  from { opacity: 0.9; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(var(--card-max-h, 86vh)); }
+}
+
+/* ── HUD поверх карточки: метка главы, уровень канала, адрес, скобы ── */
+.card3d__hud {
+  position: absolute; inset: 1px; pointer-events: none; overflow: hidden;
+  font: 500 0.625rem/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase;
+}
+.hud__tag { position: absolute; top: 0.9rem; left: calc(var(--cut) + 0.8rem); color: var(--sg-accent); font-family: var(--sg-jp), var(--mono); }
+.hud__sig { position: absolute; top: 0.9rem; right: 1.6rem; display: flex; align-items: center; gap: 0.4rem; color: var(--sg-faint); }
+.hud__sig b { font-weight: 400; color: var(--sg-accent); letter-spacing: 0.05em; }
+.hud__sig i { width: 0.35rem; height: 0.35rem; background: var(--sg-accent); box-shadow: var(--sg-glow); }
+.hud__path { position: absolute; bottom: 0.9rem; left: 1.6rem; color: var(--sg-faint); text-transform: none; letter-spacing: 0.08em; }
+.hud__corner { position: absolute; width: 1rem; height: 1rem; border: 0 solid var(--sg-accent); }
+.hud__corner--tr { top: 0.5rem; right: 0.5rem; border-top-width: 1px; border-right-width: 1px; border-color: var(--sg-nc-yellow); }
+/* Флажок на скосе карточки — жёлтая метка Night City: «канал открыт» */
+.card3d__hud::before {
+  content: ''; position: absolute; left: 0; top: 0; width: calc(var(--cut) + 0.6rem); height: calc(var(--cut) + 0.6rem);
+  background: var(--sg-nc-yellow);
+  clip-path: polygon(0 calc(var(--cut) + 1px), calc(var(--cut) + 1px) 0, calc(var(--cut) + 7px) 0, 0 calc(var(--cut) + 7px));
+  opacity: 0.85;
+}
+.hud__corner--bl { bottom: 0.5rem; left: 0.5rem; border-bottom-width: 1px; border-left-width: 1px; border-color: var(--sg-steel); }
+
+/* Заголовок слайда — белый с переходом в серебро; без свечения и двоения */
+.card3d h2:not(.final-title) { background-image: linear-gradient(100deg, #fff 35%, #c9ced6 100%); }
+/* Панели внутри слайдов — стальной кант, без внешнего ореола */
+.card3d__scroll :is(.card, .visual, .stat, .stats-note, .hero-news li, .pipe-steps li) {
+  box-shadow: inset 0 0 0 1px var(--sg-line);
+}
+/* ── Планы над листом (signal/depth.js). Панель — материал чуть
+   светлее листа: светлая кромка сверху (свет ловит край), под ней две тени —
+   короткая контактная и широкая мягкая. Тени статичные, растрируются один
+   раз; движение планов — свойство translate. Чем выше план, тем глубже тень */
+.card3d__scroll :is(.card, .stat, .gate, .entry, .versus, .pkg-history, .stats-note, .cage-facts li, .hero-news li, .pipe-steps li, .final-cta, .collection, .pain-facts li) {
+  background-color: rgba(22, 24, 30, 0.94);
+  box-shadow:
+    inset 0 0 0 1px var(--sg-line),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 1px 2px rgba(0, 0, 0, 0.55),
+    0 14px 30px -12px rgba(0, 0, 0, 0.8),
+    0 30px 64px -28px rgba(0, 0, 0, 0.7);
+}
+.card3d__scroll .visual {
+  box-shadow:
+    inset 0 0 0 1px var(--sg-line),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    0 22px 44px -14px rgba(0, 0, 0, 0.85),
+    0 46px 90px -36px rgba(0, 0, 0, 0.75);
+}
+/* Подпись под числом — читаемый текст, а не фон: светлее и крупнее, чем
+   --ink-faint из styles.css (в палитре signal он почти сливается с панелью) */
+.card3d__scroll .stat span { font-size: 0.875rem; line-height: 1.35; color: var(--sg-dim); }
+/* Значки — ближний план: маленькая плотная тень, как от предмета над панелью */
+.card3d__scroll :is(.card-ico, .gate-ico, .final-badge) { filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.55)); }
+
+/* Скругления слайдов 3d.html сведены к общей геометрии: прямой угол, 2px —
+   чтобы край не «резал» на субпикселях. Круглые индикаторы не затронуты */
+.card3d__scroll :is(.card, .visual, .visual-body, .stat, .stats-note, .hero-news li, .hero-meta span, .pipe-steps li,
+  .cage-facts li, .vrow, .versus, .entry, .gate, .ide, .pkg-history, .guard-log, .final-cta, .final-badge,
+  .collapse-target, .honest li, pre, .chip, .collection, .secret-token, .cage-panel) { border-radius: 2px; }
+
+/* Слайд в рамке: высота по контенту, поля меньше — экран не пустует */
+.card3d__scroll > .slide { min-height: 0; padding: 3.75rem 3.25rem 3.5rem; }
+.card3d__scroll > .slide--hero, .card3d__scroll > .slide--final { min-height: 58vh; }
+/* Подзаголовок титула переносится ровными строками, без висячего слова */
+.card3d .hero-sub { max-width: 46rem; margin-inline: auto; text-wrap: balance; }
+/* «Листайте вниз» в карточке не нужен: подсказка навигации — у сцены */
+.card3d .scroll-cue { display: none; }
+/* Размытие под стеклом внутри 3D-слоя пересчитывается на каждом кадре
+   движения, а карточка и так непрозрачна — отключаем */
+.card3d * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+/* Соседние карточки видны пролётом: содержимое — бледным эскизом, а когда
+   камера доедет, слайд оживает и проявляется уже полностью */
+.card3d .slide:not(.live) .reveal { opacity: 0.32; }
+.no-webgl .deck3d { position: static; opacity: 1; pointer-events: auto; }
+.no-webgl, .no-webgl body { overflow: auto; height: auto; }
+
+/* ── Рамка кадра: метки по углам и вертикальная японская подпись слева ── */
+.frame { position: fixed; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 0.6s var(--sg-ease-out) 0.3s; }
+.is-ready .frame { opacity: 1; }
+.frame__mark { position: absolute; width: 0.875rem; height: 0.875rem; border: 0 solid var(--sg-line-strong); }
+.frame__mark--tl { top: 0.75rem; left: 0.75rem; border-top-width: 1px; border-left-width: 1px; }
+.frame__mark--tr { top: 0.75rem; right: 0.75rem; border-top-width: 1px; border-right-width: 1px; }
+.frame__mark--bl { bottom: 0.75rem; left: 0.75rem; border-bottom-width: 1px; border-left-width: 1px; }
+.frame__mark--br { bottom: 0.75rem; right: 0.75rem; border-bottom-width: 1px; border-right-width: 1px; }
+.frame__tate {
+  position: absolute; left: calc(var(--sg-pad) + 0.15rem); top: 7rem; margin: 0;
+  writing-mode: vertical-rl;
+  font: 500 0.75rem/1 var(--sg-jp); letter-spacing: 0.45em; color: var(--sg-faint);
+}
+.frame__tate span { margin-top: 1.25rem; color: var(--sg-accent); }
+.frame__tate b { font-weight: 500; font-family: var(--mono); letter-spacing: 0; text-combine-upright: all; }
+
+/* ── Nav ── */
+.nav {
+  position: fixed; inset: 0 0 auto; z-index: 20;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: calc(var(--sg-pad) * 0.6) var(--sg-pad);
+  pointer-events: none;
+}
+.nav > * { pointer-events: auto; }
+.nav__brand {
+  display: flex; align-items: center; gap: 0.6rem;
+  font: 600 0.875rem/1 var(--sans); letter-spacing: 0.01em; color: var(--sg-fg); text-decoration: none;
+}
+.nav__brand:focus-visible { outline: 1px solid var(--sg-accent); outline-offset: 4px; }
+.nav__seal { display: grid; place-items: center; width: 1.375rem; height: 1.375rem; background: var(--sg-seal); color: #fff; font: 700 0.75rem/1 var(--sg-jp); }
+.nav__sub { font: 400 0.75rem/1 var(--mono); letter-spacing: 0.1em; color: var(--sg-faint); }
+/* ── Переключатель глав справа в шапке ── */
+.switch {
+  display: flex; align-items: center; gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--sg-line); background: var(--sg-panel);
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  font: 500 0.625rem/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase;
+  opacity: 0; transform: translateY(-0.4rem); pointer-events: none;
+  transition: opacity var(--sg-base) var(--sg-ease-out), transform var(--sg-base) var(--sg-ease-out);
+}
+.in-chapters .switch { opacity: 1; transform: none; pointer-events: auto; }
+.switch__name { min-width: 11rem; max-width: 16rem; padding: 0 0.6rem; text-align: center; color: var(--sg-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.switch__btn {
+  all: unset; cursor: pointer; padding: 0.4rem 0.5rem;
+  font: 700 0.6875rem/1 var(--mono); color: var(--sg-fg);
+  border: 1px solid var(--sg-line);
+  transition: color var(--sg-fast) ease, border-color var(--sg-fast) ease, background-color var(--sg-fast) ease;
+}
+.switch__btn:focus-visible { outline: 1px solid var(--sg-accent); outline-offset: 2px; }
+.switch__btn:active { transform: scale(0.96); }
+.switch__btn:disabled { opacity: 0.3; cursor: default; }
+@media (hover: hover) and (pointer: fine) {
+  .switch__btn:not(:disabled):hover { color: var(--sg-accent); border-color: rgba(47, 216, 255, 0.5); background: rgba(47, 216, 255, 0.06); }
+}
+
+/* ── Шкала прогресса у правого края: ползунок едет к главе ── */
+.rail {
+  position: fixed; right: 0.9rem; top: 50%; z-index: 20;
+  width: 1px; height: 26vh; transform: translateY(-50%);
+  background: var(--sg-line-strong);
+  opacity: 0; transition: opacity 0.4s var(--sg-ease-out);
+}
+.in-chapters .rail { opacity: 1; }
+.rail__thumb {
+  position: absolute; left: -1px; top: 0; width: 3px; height: 12%;
+  background: var(--sg-nc-yellow); box-shadow: 0 0 6px rgba(252, 238, 10, 0.5);
+  transform: translateY(var(--rail, 0%));
+  transition: transform 0.9s var(--sg-ease-move);
+}
+
+/* ── Подпись справа внизу: на вступлении крупная, на слайдах уменьшается ── */
+.intro {
+  position: fixed; right: var(--sg-pad); bottom: calc(var(--sg-pad) * 0.7); z-index: 20;
+  text-align: right; pointer-events: none;
+}
+.intro__title {
+  font-weight: 200; font-size: clamp(1rem, 1.3vw, 1.25rem); line-height: 1; letter-spacing: -0.03em; color: var(--sg-fg);
+  /* Размер на вступлении — масштабом от правого нижнего угла, не font-size */
+  transform: scale(2.85); transform-origin: 100% 100%;
+  opacity: 0;
+  transition: transform 0.8s var(--sg-ease-out), opacity 0.8s var(--sg-ease-out);
+}
+.is-ready .intro__title { opacity: 1; }
+.in-chapters .intro__title { transform: none; opacity: 0.7; }
+
+/* ── Menu, bottom-left ── */
+.menu {
+  position: fixed; left: var(--sg-pad); bottom: calc(var(--sg-pad) * 0.7); z-index: 20;
+  font: 500 0.6875rem/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase;
+  opacity: 0; transform: translateY(1rem); pointer-events: none;
+  transition: opacity 0.6s var(--sg-ease-out), transform 0.6s var(--sg-ease-out);
+}
+.is-ready .menu { opacity: 1; transform: none; pointer-events: auto; }
+.menu__title { margin: 0 0 0.8rem; color: var(--sg-fg); }
+.menu__list { list-style: none; display: grid; gap: 0.45rem; }
+.menu__list button {
+  all: unset; cursor: pointer; display: flex; align-items: center; gap: 0.6rem;
+  color: var(--sg-steel); transition: color var(--sg-fast) ease, transform var(--sg-base) var(--sg-ease-out);
+}
+.menu__arrow { opacity: 0.5; transition: transform var(--sg-base) var(--sg-ease-out); }
+.menu__list button:focus-visible { color: var(--sg-fg); transform: translateX(0.25rem); outline: 1px solid var(--sg-accent); outline-offset: 4px; }
+@media (hover: hover) and (pointer: fine) {
+  .menu__list button:hover { color: var(--sg-fg); transform: translateX(0.25rem); }
+}
+.menu__list li[data-active] button { color: var(--sg-fg); }
+.menu__list li[data-active] .menu__arrow { opacity: 1; color: var(--sg-accent); transform: translateX(0.3rem); }
+/* Пока карточка в фокусе, меню свёрнуто до текущего пункта; наведение или
+   фокус разворачивают весь список */
+.in-chapters .menu:not(:hover, :focus-within) li:not([data-active]) { display: none; }
+.in-chapters .menu:not(:hover, :focus-within) .menu__title { opacity: 0.5; }
+
+/* ── Counter: над подписью; на вступлении свёрнут ── */
+.counter {
+  font: 300 clamp(1.8rem, 2.6vw, 2.4rem)/1 var(--mono); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--sg-fg);
+  position: absolute; right: 0; bottom: calc(100% + 0.35rem); white-space: nowrap;
+  opacity: 0; transform: translateY(0.5rem);
+  transition: opacity var(--sg-base) var(--sg-ease-out), transform var(--sg-base) var(--sg-ease-out);
+}
+.in-chapters .counter { opacity: 1; transform: none; }
+.counter__total { font: 400 0.875rem/1 var(--mono); letter-spacing: 0.08em; color: var(--sg-faint); }
+
+.noscript { position: relative; z-index: 2; padding: var(--sg-pad); color: var(--sg-dim); }
+
+/* ── Подпись главы (signal/title.js) ──
+   Слева по центру, пока камера летит: номер с японским кодом, под ним
+   название. Японский слой и срезы глитча лежат поверх русского абсолютно —
+   высоту строки задаёт только русское название. Подпись остаётся на месте
+   до следующей смены главы ── */
+.chapter-title {
+  position: fixed; left: var(--sg-pad); top: 50%; z-index: 4; margin: 0;
+  /* Колонка слева от карточки; ширину задаёт сцена (main.js, resize) */
+  width: var(--sg-title-col, 18rem);
+  display: grid; gap: 0.85rem; transform-origin: 0 0;
+  pointer-events: none;
+  opacity: 0; transform: translateY(-50%);
+  transition: opacity var(--sg-base) var(--sg-ease-out);
+}
+.chapter-title.is-on { opacity: 1; }
+/* Мягкая тень за подписью — как от козырька над вывеской: город за ней
+   продолжается, а текст читается. Край растворяется, плашки нет */
+.chapter-title::before {
+  content: ''; position: absolute; inset: -3rem -3.5rem; z-index: -1;
+  background: radial-gradient(closest-side, rgba(10, 8, 16, 0.78) 45%, rgba(10, 8, 16, 0));
+  pointer-events: none;
+}
+.ct__num { display: flex; align-items: center; gap: 0.75rem; font: 400 0.8125rem/1 var(--mono); letter-spacing: 0.24em; color: var(--sg-accent); }
+.ct__num::before { content: ''; width: 2rem; height: 1px; background: var(--sg-accent); box-shadow: var(--sg-glow); }
+.ct__code { font: 500 0.75rem/1 var(--sg-jp); letter-spacing: 0.3em; color: var(--sg-steel); }
+.ct__code:not(:empty)::before { content: '·'; margin-right: 0.75rem; color: var(--sg-faint); letter-spacing: 0; }
+.ct__stage { position: relative; display: block; }
+.ct__ru {
+  display: block;
+  font: 800 clamp(1.5rem, 2.2vw, 2.25rem)/1.08 var(--sans); letter-spacing: -0.025em; color: #fff;
+  overflow-wrap: break-word; text-wrap: balance;
+  /* Лёгкий световой край снизу — неон вывесок отражается в буквах */
+  text-shadow: 0 1px 0 rgba(47, 216, 255, 0.18);
+  /* Кант, в который глитч красит бирюзовым (title.js); в покое прозрачный */
+  -webkit-text-stroke: 1px transparent; paint-order: stroke fill;
+}
+.ct__jp, .ct__slice {
+  position: absolute; left: 0; top: 0; white-space: nowrap;
+  font: 700 clamp(1.5rem, 2.2vw, 2.25rem)/1.08 var(--sg-jp); letter-spacing: 0.08em;
+  /* Сборка в цветах Night City: жёлтый знак, бирюзовый кант */
+  color: var(--sg-nc-yellow); -webkit-text-stroke: 1.5px var(--sg-nc-cyan); paint-order: stroke fill;
+  opacity: 0; pointer-events: none;
+}
+.ct__jp span { display: inline-block; text-shadow: 0 0 16px rgba(252, 238, 10, 0.4); }
+/* Срезы глитча: три горизонтальные полосы одного и того же кода */
+.ct__slice--a { clip-path: inset(0 0 66% 0); }
+.ct__slice--b { clip-path: inset(34% 0 33% 0); }
+.ct__slice--c { clip-path: inset(67% 0 0 0); }
+.ct__line {
+  position: absolute; left: 0; bottom: -0.55rem; width: 100%; height: 1px;
+  background: linear-gradient(90deg, var(--sg-nc-yellow), rgba(252, 238, 10, 0));
+  transform: scaleX(0); transform-origin: 0 50%; opacity: 0;
+}
+/* Собрано — маркер остывает в акцент сцены */
+.chapter-title.is-set .ct__line { background: linear-gradient(90deg, var(--sg-accent), rgba(47, 216, 255, 0)); }
+
+/* ── Обзор спирали ── */
+.overview-hint {
+  position: fixed; left: 50%; bottom: calc(var(--sg-pad) * 0.7); z-index: 20;
+  margin: 0; padding: 0.6rem 1rem;
+  font: 500 0.6875rem/1 var(--mono); letter-spacing: 0.08em; color: var(--sg-dim);
+  border: 1px solid var(--sg-line-strong); background: var(--sg-panel);
+  opacity: 0; transform: translate(-50%, 0.5rem); pointer-events: none;
+  transition: opacity var(--sg-base) var(--sg-ease-out), transform var(--sg-base) var(--sg-ease-out);
+}
+.is-overview .overview-hint { opacity: 1; transform: translate(-50%, 0); }
+/* Карточки в обзоре кликабельны целиком: содержимое — превью, не управление */
+.is-overview .card3d { pointer-events: auto; cursor: pointer; }
+.is-overview .card3d__scroll { pointer-events: none; }
+.is-overview .card3d__hud { transition: background-color var(--sg-fast) var(--sg-ease-out); }
+@media (hover: hover) and (pointer: fine) {
+  .is-overview .card3d:hover .card3d__hud { background-color: rgba(47, 216, 255, 0.08); }
+}
+.is-overview .menu, .is-overview .intro { opacity: 0.25; }
+
+/* ── Глава «Моки»: россыпь стендов → раздел Mock платформы (signal/mocks.js).
+   Перелёт — ease-in-out (движение по экрану), проявление — ease-out ── */
+.mockmap {
+  --mm-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --mm-move: cubic-bezier(0.77, 0, 0.175, 1);
+  position: relative; width: 100%; aspect-ratio: 4 / 3; min-height: 18rem;
+  font-family: var(--mono); font-size: 1rem;
+  transition: opacity 0.45s var(--mm-out);
+}
+.mockmap.rewind { opacity: 0; }
+.mockmap.nofx, .mockmap.nofx * { transition: none !important; }
+.mm-wires { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.mm-wire {
+  fill: none; stroke: var(--amber); stroke-width: 1; stroke-dasharray: 3 5; opacity: 0;
+  transition: opacity 0.4s var(--mm-out) calc(var(--i) * 80ms);
+  animation: mmDash 1.2s linear infinite;
+}
+.mockmap.is-scattered .mm-wire { opacity: 0.55; }
+.mockmap.is-merged .mm-wire { opacity: 0; transition-delay: calc(260ms + var(--i) * 140ms); }
+@keyframes mmDash { to { stroke-dashoffset: -16; } }
+/* Один провод: прорисовывается от браузера к прокси */
+.mm-main {
+  fill: none; stroke: var(--cyan); stroke-width: 1.6;
+  stroke-dasharray: var(--len); stroke-dashoffset: var(--len);
+  filter: drop-shadow(0 0 4px var(--cyan));
+  transition: stroke-dashoffset 0.7s var(--mm-out);
+}
+.mockmap.is-wired .mm-main { stroke-dashoffset: 0; }
+.mm-packet { fill: #fff; opacity: 0; filter: drop-shadow(0 0 4px var(--cyan)); }
+
+.mm-client {
+  position: absolute; left: 0; top: 50%; width: 22%; transform: translateY(-50%);
+  display: grid; justify-items: start; gap: 0.2rem; padding: 0.55rem 0.6rem;
+  border: 1px solid var(--line); background: rgba(6, 10, 22, 0.9);
+  font-size: 0.75em; color: var(--ink-dim);
+}
+.mm-client b { font-size: 0.9em; color: var(--ink); font-weight: 600; }
+/* Иконка окна: рамка с полосой заголовка */
+.mm-client i { width: 1.4rem; height: 1rem; border: 1px solid var(--ink-dim); border-top-width: 3px; border-radius: 2px; }
+
+.mm-hub {
+  position: absolute; left: 30%; top: 0; width: 70%; height: 100%;
+  display: grid; gap: 0.4rem; padding: 0.55rem;
+  grid-template: "head head" auto "a mock" 1fr "b mock" 1fr "proxy proxy" auto / minmax(0, 0.75fr) minmax(0, 1.5fr);
+  border: 1px solid color-mix(in srgb, var(--cyan) 45%, transparent);
+  background: rgba(4, 10, 20, 0.92);
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  opacity: 0; transform: scale(0.96);
+  transition: opacity 0.5s var(--mm-out), transform 0.6s var(--mm-out);
+}
+.mockmap.is-merged .mm-hub { opacity: 1; transform: none; }
+.mm-hub__head { grid-area: head; display: flex; align-items: center; gap: 0.45rem; font-size: 0.95em; color: var(--ink); }
+.mm-hub__head em { margin-left: auto; font-style: normal; font-size: 0.7em; letter-spacing: 0.1em; text-transform: uppercase; color: var(--lime); }
+/* Знак платформы — три слоя, как Layers в сайдбаре */
+.mm-logo { display: grid; gap: 2px; padding: 3px; border-radius: 4px; background: linear-gradient(135deg, var(--violet), var(--cyan)); }
+.mm-logo i { width: 0.7rem; height: 2px; background: #fff; border-radius: 1px; }
+.mm-tile { display: grid; align-content: start; gap: 0.3rem; padding: 0.45rem; border: 1px solid var(--line); min-width: 0; }
+.mm-tile b { font-size: 0.7em; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); }
+.mm-tile--side span { height: 3px; background: var(--line); }
+.mm-tile--side span + span { width: 60%; }
+.mm-tile--a { grid-area: a; }
+.mm-tile--b { grid-area: b; }
+.mm-tile--mock { grid-area: mock; border-color: color-mix(in srgb, var(--violet) 55%, transparent); }
+.mm-tile--mock > b { color: var(--violet); }
+/* Строки расходятся по высоте плитки — без пустого низа */
+.mm-tile--mock { grid-template-rows: auto 1fr; }
+.mm-rows { list-style: none; display: grid; align-content: space-evenly; gap: 0.35rem; }
+.mm-rows li {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.35rem;
+  padding: 0.5rem 0.5rem; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02);
+  font-size: 0.8em; color: var(--ink);
+  opacity: 0; transition: opacity 0.2s var(--mm-out);
+}
+.mm-rows li code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mm-rows li i { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--ink-faint); transition: background-color 0.3s var(--mm-out) 0.25s, box-shadow 0.3s var(--mm-out) 0.25s; }
+.mm-rows li span { font-size: 0.68em; letter-spacing: 0.08em; text-transform: uppercase; color: var(--lime); opacity: 0; transition: opacity 0.3s var(--mm-out) 0.3s; }
+.mm-rows li.is-in { opacity: 1; animation: mmLand 0.6s var(--mm-out); }
+.mm-rows li.is-in i { background: var(--lime); box-shadow: 0 0 6px var(--lime); }
+.mm-rows li.is-in span { opacity: 1; }
+@keyframes mmLand { from { border-color: var(--violet); background: color-mix(in srgb, var(--violet) 22%, transparent); } }
+.mm-proxy {
+  grid-area: proxy; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.2rem 0.6rem;
+  padding: 0.35rem 0.5rem; border: 1px dashed color-mix(in srgb, var(--cyan) 50%, transparent);
+  font-size: 0.72em; color: var(--ink-dim);
+}
+.mm-proxy code { color: var(--cyan); }
+.mockmap.is-wired .mm-proxy { animation: mmProxy 2.4s var(--mm-out) infinite; }
+@keyframes mmProxy { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--cyan) 45%, transparent); } 70%, 100% { box-shadow: 0 0 0 0.5rem transparent; } }
+
+.mm-node {
+  position: absolute; width: 33%; transform-origin: 0 0;
+  opacity: 0; transition: opacity 0.4s var(--mm-out) calc(var(--i) * 80ms);
+}
+.mockmap.is-scattered .mm-node { opacity: 1; }
+/* Перелёт в строку: двигается по экрану — ease-in-out; у цели растворяется */
+.mockmap .mm-node.is-flying { opacity: 0; transition: transform 0.9s var(--mm-move), opacity 0.2s linear 0.72s; }
+.mm-node__body {
+  display: grid; gap: 0.15rem; padding: 0.45rem 0.55rem;
+  border: 1px dashed color-mix(in srgb, var(--amber) 55%, transparent);
+  background: rgba(18, 14, 4, 0.9);
+  animation: mmFloat 3.2s ease-in-out calc(var(--i) * -0.8s) infinite alternate;
+}
+.mm-node__body code { font-size: 0.85em; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mm-node__body span { font-size: 0.7em; color: var(--ink-dim); }
+.mm-node__body em { justify-self: start; margin-top: 0.15rem; padding: 0.1rem 0.3rem; font-style: normal; font-size: 0.65em; letter-spacing: 0.08em; text-transform: uppercase; color: var(--amber); border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent); }
+@keyframes mmFloat { to { transform: translateY(-4px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mm-node__body, .mm-wire, .mockmap.is-wired .mm-proxy { animation: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rail__thumb { transition: none; }
+  .card3d.is-focus::after { animation: none; }
+}
+
+/* Меню из 13 пунктов не помещается рядом с карточкой: на низких и узких экранах — только счётчик */
+@media (max-width: 720px), (max-height: 640px) {
+  .menu, .frame__tate { display: none; }
+}
+@media (max-width: 720px) {
+  .nav__sub { display: none; }
+  .card3d { --cut: 16px; }
+  .card3d__scroll > .slide { padding: 2.75rem 1.25rem 2.5rem; }
+  .hud__sig, .hud__path { display: none; }
+  .switch__name { min-width: 7rem; max-width: 9rem; }
+  .rail { display: none; }
+  .chapter-title { width: auto; right: var(--sg-pad); top: 22%; }
+  .ct__jp, .ct__slice { white-space: normal; }   /* на узкой карточке налезают на текст */
+  .intro { bottom: 1rem; }
+  .counter { font-size: 1.5rem; }
+}
+
+/* ── Tower: карточка — экран на консоли башни TWR-00 ──
+   Кант — неоновая трубка: циан сверху, маджента снизу, как вывески города.
+   По стеклу — тонкие строки развёртки экрана; в фокусе трубка разгорается. */
+.card3d {
+  --tower-neon: #ff2bbf;
+  background: linear-gradient(180deg, var(--sg-accent), rgba(47, 216, 255, 0.35) 30%, rgba(255, 43, 191, 0.35) 70%, var(--tower-neon));
+  transition: filter var(--sg-fast) var(--sg-ease-out);
+}
+.card3d.is-focus { animation: towerIgnite 0.7s steps(1, end) both; }
+@keyframes towerIgnite {
+  0%, 18%, 34% { filter: brightness(0.7); }
+  12%, 26%, 100% { filter: none; }
+}
+.card3d__hud::after {
+  content: ''; position: absolute; inset: 0;
+  background: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 3px);
+  mix-blend-mode: screen;
+}
+/* Адрес экрана — табличка на раме: моноширинный, с меткой маджентой */
+.hud__path { color: var(--sg-dim, var(--sg-faint)); text-transform: uppercase; letter-spacing: 0.18em; }
+.hud__path::before {
+  content: ''; display: inline-block; width: 0.45rem; height: 0.45rem; margin-right: 0.5rem; vertical-align: -0.05rem;
+  background: var(--tower-neon); box-shadow: 0 0 0.5rem var(--tower-neon);
+}
+@media (prefers-reduced-motion: reduce) {
+  .card3d.is-focus { animation: none; }
+}

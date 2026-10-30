@@ -500,7 +500,7 @@ function createAudio() {
 // ══════════════ Сцена ══════════════
 
 /**
- * @param {HTMLElement} root — контейнер .mv из index.html
+ * @param {HTMLElement} root — контейнер .mv из signal.html
  * @param {Array<{ id: string, label: string }>} steps — этапы запуска по порядку
  * @param {{ reduce: boolean }} opts
  */
